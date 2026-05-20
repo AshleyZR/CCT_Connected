@@ -123,7 +123,7 @@ var instructFunction = function() {
 	}
 	CCT_timeouts.push(setTimeout(function() {
 		document.getElementById("instruct1").innerHTML =
-		'<strong>Example 1.</strong> In this example, there are 32 face-down cards. The display tells you there is 1 loss card, each gain card is worth 10 points, and the loss card costs 750 points. Suppose you choose to turn over 7 cards. <font color = "red">Luckily, none of the 7 cards selected by the computer was the loss card. You earned 10 points for each card, so your score for this round was 7 &times; 10 = 70 points. Please click Next.</font>'
+		'<strong>Example 1.</strong> In this example, there are 32 face-down cards. The display tells you there is 1 loss card, each gain card is worth 10 points, and the loss card costs 750 points. Suppose you choose to turn over 7 cards. <font color = "red">Luckily, none of the 7 cards selected by the computer was the loss card. You earned 10 points for each card, so your score for this round was 7 &times; 10 = 70 points. <span style="color:red; text-decoration:underline;">Please click Next.</span></font>'
 		}, delay))
 }
 
@@ -170,7 +170,7 @@ var instructFunction2 = function() {
 	doSetTimeout(13, delay, total_points, 'loss')
 	CCT_timeouts.push(setTimeout(function() {
 		document.getElementById("instruct2").innerHTML =
-			'<strong>Example 2.</strong> In this example, there are 32 face-down cards. The display tells you there are 3 loss cards, each gain card is worth 30 points, and each loss card costs 250 points. Suppose you choose to turn over 10 cards. <font color = "red">One of the cards selected by the computer was a loss card. The round ended as soon as the loss card appeared. Before the loss card appeared, 3 gain cards had been revealed: 3 &times; 30 = 90 points. Then the loss card subtracted 250 points: 90 &minus; 250 = &minus;160 points. Your score for this round was &minus;160 points. The remaining selected cards are shown for transparency, but they do not affect your score. Please click Next.</font>'
+			'<strong>Example 2.</strong> In this example, there are 32 face-down cards. The display tells you there are 3 loss cards, each gain card is worth 30 points, and each loss card costs 250 points. Suppose you choose to turn over 10 cards. <font color = "red">One of the cards selected by the computer was a loss card. The round ended as soon as the loss card appeared. Before the loss card appeared, 3 gain cards had been revealed: 3 &times; 30 = 90 points. Then the loss card subtracted 250 points: 90 &minus; 250 = &minus;160 points. Your score for this round was &minus;160 points. The remaining selected cards are shown for transparency, but they do not affect your score. <span style="color:red; text-decoration:underline;">Please click Next.</span></font>'
 	}, delay))
 	CCT_timeouts.push(setTimeout(instructTurnCards, delay + 1000))
 }
