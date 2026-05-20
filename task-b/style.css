@@ -74,7 +74,7 @@
  width:87.5vw;
  height: 18vh;
  position: fixed;
- top:4vh;
+ top:10vh;
  left:6vw;
  margin-right:0%;
 }
@@ -184,7 +184,7 @@
   width:14vw;
   height: 6vh;
   position: fixed;
-  bottom: 53vh;
+  bottom: 62vh;
   left: 50%;
   transform: translateX(-50%);
   border-style: solid;
@@ -206,7 +206,7 @@
   width:85vw;
   height: 6vh;
   position: fixed;
-  bottom: 45vh;
+  bottom: 54vh;
   left: 50%;
   transform: translateX(-50%);
   border-style: solid;
