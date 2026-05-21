@@ -184,6 +184,18 @@
   width:14vw;
   height: 6vh;
   position: fixed;
+  bottom: 53vh;
+  left: 50%;
+  transform: translateX(-50%);
+  border-style: solid;
+  border-color: white;
+  z-index: 10;
+}
+
+.buttonbox-game {
+  width:14vw;
+  height: 6vh;
+  position: fixed;
   bottom: 62vh;
   left: 50%;
   transform: translateX(-50%);
@@ -203,6 +215,18 @@
 }
 
 .allbuttons {
+  width:85vw;
+  height: 6vh;
+  position: fixed;
+  bottom: 45vh;
+  left: 50%;
+  transform: translateX(-50%);
+  border-style: solid;
+  border-color: White;
+  z-index: 10;
+}
+
+.allbuttons-game {
   width:85vw;
   height: 6vh;
   position: fixed;

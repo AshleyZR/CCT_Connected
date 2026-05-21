@@ -45,7 +45,8 @@ var appendTestData = function() {
 
 var getButtons = function(buttonType) {
 	var buttons = ""
-	buttons = "<div class = allbuttons>"
+	var containerClass = (buttonType == 'game') ? 'allbuttons-game' : 'allbuttons'
+	buttons = "<div class = " + containerClass + ">"
 	for (i = 0; i < 33; i++) {
 		buttons += "<button type = 'button' class = 'CCT-btn chooseButton' id = " + i +
 			" onclick = chooseButton(this.id)>" + i + "</button>"
@@ -324,8 +325,8 @@ var shuffledParamsArray = jsPsych.randomization.repeat(paramsArray, numRounds/8)
 var gameSetup =
 	"<div class = cct-box-game>"+
 	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: </div></div>   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: </div></div>    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: </div></div>    <div class = titlebox><div class = center-text>How many cards do you want to take? </div></div>     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: </div></div>" +
-	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>Next Round</button></div>"+
-	getButtons()+
+	"<div class = buttonbox-game><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>Next Round</button></div>"+
+	getButtons('game')+
 	"</div>"+
 	getBoard()
 
