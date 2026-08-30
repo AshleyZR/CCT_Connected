@@ -130,18 +130,12 @@ var instructFunction = function() {
 
 var instructFunction2 = function() {
 	$('#instructButton').prop('disabled', true)
-	var tempArray = [3, 5, 6, 7, 9, 10, 11, 12, 19, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26,
-		27, 28, 29, 31, 32
-	]
+	// The remaining 6 of the 10 cards the computer selected, revealed after the
+	// loss card ended the round. They are shown for transparency only.
+	var remainingSelected = [3, 5, 6, 7, 9, 10]
 	var instructTurnCards = function() {
-		document.getElementById("8").src =
-			'images/loss.png';
-		document.getElementById("2").src =
-			'images/loss.png';
-
-		for (i = 0; i < tempArray.length; i++) {
-			document.getElementById("" + tempArray[i] + "").src =
-				'images/chosen.png';
+		for (var i = 0; i < remainingSelected.length; i++) {
+			turnOneCard(remainingSelected[i], 'win')
 		}
 	}
 
