@@ -12,7 +12,23 @@
     font-size: 18px; padding: 12px 28px; cursor: pointer;
     border: none; border-radius: 6px; background: #2563eb; color: #fff;
   }
-  button.primary:hover { background: #1d4ed8; }
+  button.primary:hover:enabled { background: #1d4ed8; }
+  button.primary:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+  #code-form { margin: 8px 0 4px; }
+  #code-form label { display: block; font-size: 14px; color: #555; margin-bottom: 6px; }
+  #code-form input {
+    font-size: 18px; padding: 10px 12px; width: 200px; text-align: center;
+    border: 1px solid #cbd5e1; border-radius: 6px; letter-spacing: 2px;
+  }
+  #code-form input:disabled { background: #f1f5f9; color: #94a3b8; }
+  #code-form button {
+    font-size: 16px; padding: 10px 20px; margin-left: 8px; cursor: pointer;
+    border: none; border-radius: 6px; background: #475569; color: #fff;
+  }
+  #code-form button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+  #code-msg { min-height: 22px; font-size: 15px; margin: 4px 0 12px; }
+  #code-msg.ok { color: #15803d; }
+  #code-msg.err { color: #b91c1c; }
   iframe#exp { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 </style>
 </head>
@@ -21,7 +37,14 @@
 <div id="intro">
   <h1 style="font-weight:normal;">Experiment</h1>
   <p>You will complete two short tasks back-to-back. The experiment will run in fullscreen.</p>
-  <p><button class="primary" id="start">Launch Experiment</button></p>
+  <form id="code-form" autocomplete="off">
+    <label for="code">Experimenter code</label>
+    <input type="password" id="code" name="code" autocomplete="off" autocapitalize="off"
+           autocorrect="off" spellcheck="false" inputmode="text">
+    <button type="submit" id="unlock">Unlock</button>
+  </form>
+  <p id="code-msg" role="status" aria-live="polite"></p>
+  <p><button class="primary" id="start" disabled>Launch Experiment</button></p>
 </div>
 
 <div id="thanks" style="display:none;">
@@ -165,6 +188,18 @@ function finishExperiment() {
   document.getElementById('thanks').style.display = 'flex';
 }
 
+// ---------- Experimenter codes ----------
+// EDIT THESE to change the codes. Each code maps to a task order:
+//   'a' = task-a = Columbia Card Task, HOT version
+//   'b' = task-b = Columbia Card Task, COLD version
+// Codes are compared lower-cased and trimmed, so capitalisation does not matter.
+var CODES = {
+  'heron7': ['a', 'b'],   // Hot first, then Cold
+  'cedar3': ['b', 'a']    // Cold first, then Hot
+};
+
+var TASK_LABEL = { a: 'Hot', b: 'Cold' };
+
 // ---------- Main ----------
 (function() {
   var params = new URLSearchParams(window.location.search);
@@ -181,17 +216,49 @@ function finishExperiment() {
     return;
   }
 
-  // Fresh launch: clear stash, prepare random order, wait for click.
+  // Fresh launch: clear stash, wait for a valid experimenter code.
   clearStash();
-  var order = Math.random() < 0.5 ? ['a', 'b'] : ['b', 'a'];
-  var orderStr = order.join(',');
-  var firstUrl = 'task-' + order[0] + '/index.html?s=' + encodeURIComponent(orderStr) + '&i=0';
+
+  var order = null;   // set only once a recognised code is entered
+  var form = document.getElementById('code-form');
+  var input = document.getElementById('code');
+  var unlock = document.getElementById('unlock');
+  var msg = document.getElementById('code-msg');
+  var startBtn = document.getElementById('start');
+
+  input.focus();
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var entered = input.value.trim().toLowerCase();
+
+    if (!Object.prototype.hasOwnProperty.call(CODES, entered)) {
+      order = null;
+      startBtn.disabled = true;
+      msg.className = 'err';
+      msg.textContent = entered ? 'Unrecognized code.' : 'Please enter the experimenter code.';
+      input.select();
+      return;
+    }
+
+    order = CODES[entered];
+    msg.className = 'ok';
+    msg.textContent = 'Code accepted \u2014 ' + TASK_LABEL[order[0]] + ' first, then ' + TASK_LABEL[order[1]] + '.';
+    input.value = '';
+    input.disabled = true;
+    unlock.disabled = true;
+    startBtn.disabled = false;
+    startBtn.focus();
+  });
 
   window.addEventListener('message', function(e) {
     if (e.data === 'exp_done') finishExperiment();
   });
 
-  document.getElementById('start').addEventListener('click', function() {
+  startBtn.addEventListener('click', function() {
+    if (!order) return;   // defensive: button is disabled until a code is accepted
+    var orderStr = order.join(',');
+    var firstUrl = 'task-' + order[0] + '/index.html?s=' + encodeURIComponent(orderStr) + '&i=0';
     var el = document.documentElement;
     var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
     if (req) {
