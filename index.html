@@ -198,7 +198,6 @@ var CODES = {
   'cedar3': ['b', 'a']    // Cold first, then Hot
 };
 
-var TASK_LABEL = { a: 'Hot', b: 'Cold' };
 
 // ---------- Main ----------
 (function() {
@@ -243,7 +242,8 @@ var TASK_LABEL = { a: 'Hot', b: 'Cold' };
 
     order = CODES[entered];
     msg.className = 'ok';
-    msg.textContent = 'Code accepted \u2014 ' + TASK_LABEL[order[0]] + ' first, then ' + TASK_LABEL[order[1]] + '.';
+    // Deliberately neutral: the message must not reveal the task order to the participant.
+    msg.textContent = 'Code accepted.';
     input.value = '';
     input.disabled = true;
     unlock.disabled = true;
