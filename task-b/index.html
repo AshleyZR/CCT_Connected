@@ -77,6 +77,14 @@ function downloadCSV(filename, csvText) {
     URL.revokeObjectURL(url);
 }
 
+function timestamp() {
+    // Local time, formatted YYYY-MM-DD-HHMM (e.g. 2026-08-31-1654).
+    var d = new Date();
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + '-' + pad(d.getHours()) + pad(d.getMinutes());
+}
+
 function saveFilteredCSV(filename, dropCols) {
     downloadCSV(filename, buildFilteredCSV(dropCols));
 }
@@ -118,7 +126,7 @@ $( document ).ready(function() {
                      // Chained mode: stash CSV; download all files only after the final task.
                      var orderArr = order.split(',');
                      var roundLabel = (idx === 0) ? 'FirstRound' : 'SecondRound';
-                     var filename = roundLabel + '_Cold.csv';
+                     var filename = roundLabel + '_Cold_' + timestamp() + '.csv';
                      try {
                          localStorage.setItem('e_csv_' + idx, buildFilteredCSV(DROP_COLUMNS));
                          localStorage.setItem('e_name_' + idx, filename);
@@ -151,7 +159,7 @@ $( document ).ready(function() {
                              if (err.status == 200) {
                                  document.location = "/next";
                              } else {
-                                 saveFilteredCSV('columbia-card-task-cold_results.csv', DROP_COLUMNS);
+                                 saveFilteredCSV('columbia-card-task-cold_results_' + timestamp() + '.csv', DROP_COLUMNS);
                              }
                          }
                      });
