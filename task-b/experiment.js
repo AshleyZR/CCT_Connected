@@ -266,7 +266,7 @@ var lossAmt = ""
 var points = []
 var whichLossCards = [17]
 var CCT_timeouts = []
-var numRounds = 24
+var numRounds = 16
 var whichRound = 0
 var totalPoints = 0
 var roundOver = 0
@@ -313,7 +313,7 @@ var cardArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
 ]
 
 var shuffledCardArray = jsPsych.randomization.repeat(cardArray, 1)
-var shuffledParamsArray = jsPsych.randomization.repeat(paramsArray, numRounds/8)
+var shuffledParamsArray = jsPsych.randomization.repeat(paramsArray, numRounds / paramsArray.length)
 
 
 var gameSetup =
