@@ -22,6 +22,10 @@ jsPsych.plugins['poldrack-instructions'] = (function() {
     trial.allow_keys = (typeof trial.allow_keys === 'undefined') ? true : trial.allow_keys;
     trial.show_clickable_nav = (typeof trial.show_clickable_nav === 'undefined') ? false :
       trial.show_clickable_nav;
+    // Customisable nav button labels (defaults preserve the original behaviour).
+    trial.button_label_next = trial.button_label_next || 'Next';
+    trial.button_label_back = trial.button_label_back || 'Previous';
+    trial.button_label_last = trial.button_label_last || 'End Instructions';
 
     // if any trial variables are functions
     // this evaluates the function and replaces
@@ -41,20 +45,20 @@ jsPsych.plugins['poldrack-instructions'] = (function() {
 
         var nav_html = "<div class='jspsych-instructions-nav'>";
         if (trial.pages.length == 1) {
-          nav_html += "<button id='jspsych-instructions-next'>End Instructions</button>"
+          nav_html += "<button id='jspsych-instructions-next'>" + trial.button_label_last + "</button>"
         } else {
           if (current_page == 0) {
-            nav_html += "<button id='jspsych-instructions-next'>Next</button>"
+            nav_html += "<button id='jspsych-instructions-next'>" + trial.button_label_next + "</button>"
           } else if (current_page == trial.pages.length - 1) {
             if (trial.allow_backward) {
-              nav_html += "<button id='jspsych-instructions-back'>Previous</button>";
+              nav_html += "<button id='jspsych-instructions-back'>" + trial.button_label_back + "</button>";
             }
-            nav_html += "<button id='jspsych-instructions-next'>End Instructions</button>"
+            nav_html += "<button id='jspsych-instructions-next'>" + trial.button_label_last + "</button>"
           } else {
             if (trial.allow_backward) {
-              nav_html += "<button id='jspsych-instructions-back'>Previous</button>";
+              nav_html += "<button id='jspsych-instructions-back'>" + trial.button_label_back + "</button>";
             }
-            nav_html += "<button id='jspsych-instructions-next'>Next</button>"
+            nav_html += "<button id='jspsych-instructions-next'>" + trial.button_label_next + "</button>"
           }
         }
         nav_html += "</div>"

@@ -270,3 +270,253 @@
 .CCT-btn:disabled {
   background-color: #8ea0c2;
 }
+/* ---------------------------------------------------------------- */
+/* Instruction pages                                                 */
+/* ---------------------------------------------------------------- */
+.instr-page {
+  width: 64vw;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2vh 0 1.5vh;
+  text-align: left;
+  font-size: 17.5px;
+  line-height: 1.42;
+}
+
+.instr-heading {
+  font-size: 25px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0.8em;
+}
+
+.instr-body p { margin: 0 0 0.62em 0; }
+.instr-body ul { margin: 0 0 0.62em 1.4em; }
+.instr-body li { margin-bottom: 0.2em; }
+
+.card-legend { margin: 0.4em 0 0.7em 0; }
+
+.card-legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.45em;
+}
+
+.legend-card { height: 62px; margin-right: 18px; }
+
+.example-box {
+  border-left: 4px solid cornflowerblue;
+  padding: 0.3em 0 0.3em 1em;
+  margin: 0 0 0.7em 0;
+}
+
+.example-box p { margin: 0 0 0.2em 0; }
+.example-math { font-weight: bold; }
+
+.jspsych-instructions-nav {
+  text-align: center;
+  margin-top: 1.2em;
+}
+
+.jspsych-instructions-nav button {
+  font-size: 17px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding: 10px 30px;
+  margin: 0 6px;
+  color: white;
+  background-color: cornflowerblue;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.jspsych-instructions-nav button:hover {
+  border-color: #999;
+  background-color: darkblue;
+}
+
+/* ---------------------------------------------------------------- */
+/* Round header re-layout                                            */
+/* Row 1: round + #loss | Row 2: loss/gain | Row 3: state prompt      */
+/* ---------------------------------------------------------------- */
+.titleBigBox {
+  width: 86vw;
+  height: 15vh;
+  left: 0;
+  top: 0;
+}
+
+.titleboxLeft,
+.titleboxLeft1,
+.titleboxMiddle1,
+.titleboxRight1 {
+  width: 24vw;
+  height: 3.4vh;
+  position: absolute;
+  transform: none;
+  margin-right: 0;
+  border-style: solid;
+  border-color: black;
+  box-sizing: border-box;
+}
+
+.titleboxLeft    { top: 0;     left: 0; }
+.titleboxRight1  { top: 0;     left: 62vw; }
+.titleboxLeft1   { top: 4.2vh; left: 0; }
+.titleboxMiddle1 { top: 4.2vh; left: 31vw; }
+
+.titlebox {
+  top: 9vh;
+  left: 0;
+  width: 86vw;
+  height: 3.4vh;
+  position: absolute;
+  transform: none;
+  margin-right: 0;
+  border: none;
+}
+
+.center-text { font-size: clamp(11px, 1.28vw, 21px); }
+
+#round_prompt {
+  font-size: clamp(13px, 1.55vw, 25px);
+  font-weight: bold;
+}
+
+/* Sub-prompt sits directly above the numbered buttons */
+.subpromptbox {
+  width: 85vw;
+  height: 4vh;
+  position: fixed;
+  bottom: 51.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+#sub_prompt { font-size: clamp(11px, 1.3vw, 20px); }
+
+/* Corrective message sits directly below the numbered buttons */
+.cardmsgbox {
+  width: 85vw;
+  height: 4vh;
+  position: fixed;
+  bottom: 39.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+#card_click_msg {
+  font-size: clamp(11px, 1.3vw, 20px);
+  color: #b91c1c;
+  font-weight: bold;
+}
+
+.CCT-btn { font-size: clamp(11px, 1.22vw, 19px); }
+
+.chooseButton { font-size: clamp(9px, 1.05vw, 16px); }
+
+/* The chosen number stays visibly marked after selection */
+.chooseButton.selected-number,
+.chooseButton.selected-number:disabled {
+  background-color: #14307d;
+  border: 2px solid #000;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- */
+/* Cards are display elements here, never response controls          */
+/* ---------------------------------------------------------------- */
+.card_image.display-card {
+  cursor: default;
+  pointer-events: auto;
+}
+
+.card_image.display-card:hover,
+.card_image.display-card:focus,
+.card_image.display-card:active {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.tutorial-continue-box {
+  position: fixed;
+  bottom: 2.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16vw;
+  height: 5vh;
+  z-index: 20;
+}
+
+#tutorial_heading {
+  font-size: 26px;
+  margin-bottom: 0.2em;
+}
+
+.practiceText { max-height: 18vh; }
+
+/* Keep all 33 numbered buttons on a single row at any viewport width */
+.allbuttons,
+.allbuttons-game {
+  width: 94vw;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.chooseButton {
+  width: 2.15vw;
+  min-width: 17px;
+  height: 3.4vh;
+  margin: 0 1px;
+  padding: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.allbuttons,
+.allbuttons-game,
+.buttonbox,
+.buttonbox-game {
+  border: none;
+}
+
+/* Real-round variants: numbered buttons sit higher than in practice */
+.subpromptbox-game {
+  width: 85vw;
+  height: 3vh;
+  position: fixed;
+  bottom: 58.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.cardmsgbox-game {
+  width: 85vw;
+  height: 4vh;
+  position: fixed;
+  bottom: 48.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+/* Center label text inside its box without overflowing it (the old
+   top:50%/translateY hack made the inner div taller than its parent). */
+.center-text {
+  position: relative;
+  top: 0;
+  -ms-transform: none;
+  -webkit-transform: none;
+  transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  height: 100%;
+  line-height: 1.15;
+}

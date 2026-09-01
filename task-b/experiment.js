@@ -1,13 +1,35 @@
 /* ************************************ */
 /* Define helper functions */
 /* ************************************ */
-var getInstructFeedback = function() {
-	return '<div class = centerbox><p class = center-block-text>' + feedback_instruct_text +
-		'</p></div>'
+// Position in the chained sequence; set by index.html. Standalone runs count as first.
+var IS_FIRST_TASK = (typeof CHAIN_INDEX === 'undefined') || CHAIN_INDEX === 0
+
+// State-dependent prompts.
+var PROMPT_CHOOSE = 'How many cards do you want to take?'
+var SUBPROMPT_CHOOSE = 'Select one number from 0 to 32.'
+var CARD_CLICK_MESSAGE = 'Please use the numbered buttons below to make your choice.'
+
+var setPrompt = function(text) {
+	var el = document.getElementById('round_prompt')
+	if (el) el.innerHTML = text
+}
+
+var setSubPrompt = function(text) {
+	var el = document.getElementById('sub_prompt')
+	if (el) el.innerHTML = text
+}
+
+// Cards are display elements in this task. A click is never a response; it only
+// nudges the participant toward the numbered buttons.
+var cardNotAResponse = function() {
+	var el = document.getElementById('card_click_msg')
+	if (el) el.innerHTML = CARD_CLICK_MESSAGE
 }
 
 function assessPerformance() {
-	var experiment_data = jsPsych.data.getTrialsOfType('single-stim-button')
+	var experiment_data = jsPsych.data.getTrialsOfType('single-stim-button').filter(function(d) {
+		return d.exp_stage !== 'tutorial'
+	})
 	var missed_count = 0
 	var trial_count = 0
 	var rt_array = []
@@ -43,52 +65,29 @@ var appendTestData = function() {
 	})
 }
 
-var getButtons = function(buttonType) {
+var getButtons = function(buttonType, handler) {
+	var fn = handler || 'chooseButton'
 	var buttons = ""
 	var containerClass = (buttonType == 'game') ? 'allbuttons-game' : 'allbuttons'
 	buttons = "<div class = " + containerClass + ">"
 	for (i = 0; i < 33; i++) {
 		buttons += "<button type = 'button' class = 'CCT-btn chooseButton' id = " + i +
-			" onclick = chooseButton(this.id)>" + i + "</button>"
+			" onclick = " + fn + "(this.id)>" + i + "</button>"
 	}
 	return buttons
 }
 
 var getBoard = function(board_type) {
-	var board = ''
-	if (board_type == 2) {
-		board = "<div class = cardbox>"
-		for (i = 1; i < 33; i++) {
-		board += "<div class = square><input type='image' class = card_image id = c" + i +
-			" src='images/beforeChosen.png'></div>"
-		}
-		
-	} else {
-		board = "<div class = cardbox2>"
-		for (i = 1; i < 33; i++) {
-		board += "<div class = square><input class = card_image type='image' id = c" + i +
-			" src='images/beforeChosen.png'></div>"
-		}
+	// Cards are never response controls in this task: not focusable, and a click only
+	// shows a corrective message. They stay face-down for the whole round.
+	var containerClass = (board_type == 2) ? 'cardbox' : 'cardbox2'
+	var board = "<div class = " + containerClass + ">"
+	for (i = 1; i < 33; i++) {
+		board += "<div class = square><input class = 'card_image display-card' type='image' id = c" + i +
+			" src='images/beforeChosen.png' tabindex='-1' onclick = cardNotAResponse()></div>"
 	}
 	board += "</div>"
 	return board
-}
-
-var turnOneCard = function(whichCard, win) {
-	if (win === 'loss') {
-		document.getElementById("c" + whichCard + "").src =
-			'images/loss.png';
-	} else {
-		document.getElementById("c" + whichCard + "").src =
-			'images/chosen.png';
-	}
-}
-
-function doSetTimeout(card_i, delay, points, win) {
-	CCT_timeouts.push(setTimeout(function() {
-		turnOneCard(card_i, win);
-		document.getElementById("current_round").innerHTML = 'Current Round Points: ' + points
-	}, delay));
 }
 
 function clearTimers() {
@@ -96,80 +95,6 @@ function clearTimers() {
 		clearTimeout(CCT_timeouts[i]);
 	}
 }
-
-
-var instructFunction = function() {
-	$('#instructButton').prop('disabled', true)
-	$('#jspsych-instructions-next').click(function() {
-		for (var i = 0; i < CCT_timeouts.length; i++) {
-			clearTimeout(CCT_timeouts[i]);
-		}
-	})
-
-	$('#jspsych-instructions-back').click(function() {
-		for (var i = 0; i < CCT_timeouts.length; i++) {
-			clearTimeout(CCT_timeouts[i]);
-		}
-	})
-
-	var cards_to_turn = [1, 17, 18, 15, 27, 31, 8]
-	var total_points = 0
-	var points_per_card = 10
-	var delay = 0
-	for (var i = 0; i < cards_to_turn.length; i++) {
-		var card_i = cards_to_turn[i]
-		delay += 250
-		total_points += points_per_card
-		doSetTimeout(card_i, delay, total_points, 'win')
-	}
-	CCT_timeouts.push(setTimeout(function() {
-		document.getElementById("instruct1").innerHTML =
-		'<strong>Example 1.</strong> In this example, there are 32 face-down cards. The display tells you there is 1 loss card, each gain card is worth 10 points, and the loss card costs 750 points. Suppose you choose to turn over 7 cards. <font color = "red">Luckily, none of the 7 cards selected by the computer was the loss card. You earned 10 points for each card, so your score for this round was 7 &times; 10 = 70 points. <span style="color:red; text-decoration:underline;">Please click Next.</span></font>'
-		}, delay))
-}
-
-var instructFunction2 = function() {
-	$('#instructButton').prop('disabled', true)
-	// The remaining 6 of the 10 cards the computer selected, revealed after the
-	// loss card ended the round. They are shown for transparency only.
-	var remainingSelected = [3, 5, 6, 7, 9, 10]
-	var instructTurnCards = function() {
-		for (var i = 0; i < remainingSelected.length; i++) {
-			turnOneCard(remainingSelected[i], 'win')
-		}
-	}
-
-	$('#jspsych-instructions-next').click(function() {
-		for (var i = 0; i < CCT_timeouts.length; i++) {
-			clearTimeout(CCT_timeouts[i]);
-		}
-	})
-
-	$('#jspsych-instructions-back').click(function() {
-		for (var i = 0; i < CCT_timeouts.length; i++) {
-			clearTimeout(CCT_timeouts[i]);
-		}
-	})
-	var cards_to_turn = [1, 4, 30]
-	var total_points = 0
-	var points_per_card = 30
-	var delay = 0
-	for (var i = 0; i < cards_to_turn.length; i++) {
-		var card_i = cards_to_turn[i]
-		delay += 250
-		total_points += points_per_card
-		doSetTimeout(card_i, delay, total_points, 'win')
-	}
-	delay += 250
-	total_points -= 250
-	doSetTimeout(13, delay, total_points, 'loss')
-	CCT_timeouts.push(setTimeout(function() {
-		document.getElementById("instruct2").innerHTML =
-			'<strong>Example 2.</strong> In this example, there are 32 face-down cards. The display tells you there are 3 loss cards, each gain card is worth 30 points, and each loss card costs 250 points. Suppose you choose to turn over 10 cards. <font color = "red">One of the cards selected by the computer was a loss card. The round ended as soon as the loss card appeared. Before the loss card appeared, 3 gain cards had been revealed: 3 &times; 30 = 90 points. Then the loss card subtracted 250 points: 90 &minus; 250 = &minus;160 points. Your score for this round was &minus;160 points. The remaining selected cards are shown for transparency, but they do not affect your score. <span style="color:red; text-decoration:underline;">Please click Next.</span></font>'
-	}, delay))
-	CCT_timeouts.push(setTimeout(instructTurnCards, delay + 1000))
-}
-
 
 
 var getPractice1 = function() {
@@ -202,15 +127,14 @@ var chooseButton = function(clicked_id) {
 		}
 	}
 	roundPointsArray.push(roundPoints)
-	if ($('#feedback').length) {
-		document.getElementById("feedback").innerHTML = ''
-	}
-}
-
-var instructButton = function(clicked_id) {
-	currID = parseInt(clicked_id)
-	document.getElementById(clicked_id).src =
-		'images/chosen.png';
+	// Scoring above is unchanged. Nothing about the outcome is shown: no card is
+	// flipped, no identity revealed, no loss-card feedback given for this round.
+	$('#' + clicked_id).addClass('selected-number')
+	setPrompt('You selected ' + currID + ' card' + (currID === 1 ? '' : 's') +
+		'. Click NEXT ROUND to continue.')
+	setSubPrompt('')
+	var msg = document.getElementById('card_click_msg')
+	if (msg) msg.innerHTML = ''
 }
 
 // appends text to be presented in the game
@@ -275,11 +199,64 @@ var prize1 = 0
 var prize2 = 0
 var prize3 = 0
 
+// Header panel shared by the tutorial, practice rounds and real rounds.
+var coldHeader = function(roundLabel, lossAmount, gainAmount, lossCards) {
+	return "<div class = titleBigBox>" +
+		"   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: " + roundLabel + "</div></div>" +
+		"   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: <strong style=\"color:red\">" + lossAmount + "</strong></div></div>" +
+		"    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: <strong style=\"color:red\">" + gainAmount + "</strong></div></div>" +
+		"    <div class = titlebox><div class = center-text id = round_prompt>" + PROMPT_CHOOSE + "</div></div>" +
+		"     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: <strong style=\"color:red\">" + lossCards + "</strong></div></div>"
+}
+
+// The real rounds place the numbered buttons higher than practice does, so the
+// sub-prompt and message boxes need matching variants to stay adjacent to them.
+var coldSubPrompt = function(variant) {
+	var suffix = (variant === 'game') ? '-game' : ''
+	return "<div class = 'subpromptbox" + suffix + "'><div class = center-text id = sub_prompt>" + SUBPROMPT_CHOOSE + "</div></div>" +
+		"<div class = 'cardmsgbox" + suffix + "'><div class = center-text id = card_click_msg></div></div>"
+}
+
+/* ---------------------------------------------------------------- */
+/* Cold tutorial ("Try It") - select 7, nothing is revealed          */
+/* ---------------------------------------------------------------- */
+var tutorialChoose = function(clicked_id) {
+	var n = parseInt(clicked_id)
+	if (n !== 7) {
+		document.getElementById('card_click_msg').innerHTML =
+			'For this tutorial, please select 7.'
+		return
+	}
+	$('.chooseButton').prop('disabled', true)
+	$('#' + clicked_id).addClass('selected-number')
+	document.getElementById('card_click_msg').innerHTML = ''
+	setPrompt('You selected 7 cards. Click NEXT ROUND to continue.')
+	setSubPrompt('')
+	document.getElementById('tutorial_text').innerHTML =
+		'You selected 7 cards.<br>The cards remain face-down. Click <strong>NEXT ROUND</strong> to continue.'
+	$('#nextButton').prop('disabled', false)
+}
+
+var getColdTutorial = function() {
+	return "<div class = practiceText>" +
+		"<div class = block-text2 id = tutorial_heading>Try It</div>" +
+		"<div class = block-text2 id = tutorial_text>Suppose you want to take 7 cards.<br>Use the numbered buttons below to select 7.</div>" +
+		"</div>" +
+		"<div class = cct-box2>" +
+		coldHeader(1, 250, 30, 1) +
+		"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' disabled>NEXT ROUND</button></div>" +
+		coldSubPrompt() +
+		getButtons('', 'tutorialChoose') +
+		"</div>" +
+		getBoard()
+}
+
 var practiceSetup1 =
-	"<div class = practiceText><div class = block-text2 id = instruct1><strong>Practice 1.</strong> This is a practice round. It looks like the real game. Please choose how many cards you want to turn over, from 0 to 32, based on the number of loss cards and the gain/loss points shown below. You will choose only the number of cards; the computer will randomly select which cards are revealed. If turning over cards seems too risky, you can choose 0 cards, and your score for the round will be 0.</div></div>" +
+	"<div class = practiceText><div class = block-text2>Practice Round 1 of 2</div></div>" +
 	"<div class = cct-box2>"+
-	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: 1</div></div>   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: <strong style=\"color:red\">250</strong></div></div>    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: <strong style=\"color:red\">30</strong></div></div>    <div class = titlebox><div class = center-text>How many cards do you want to take? </div></div>     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: <strong style=\"color:red\">1</strong></div></div>"+
-	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>Next Round</button></div>"+
+	coldHeader(1, 250, 30, 1)+
+	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>NEXT ROUND</button></div>"+
+	coldSubPrompt()+
 	getButtons()+
 	"</div>"+
 	getBoard()
@@ -287,10 +264,11 @@ var practiceSetup1 =
 
 
 var practiceSetup2 =
- 	"<div class = practiceText><div class = block-text2 id = instruct2><strong>Practice 2.</strong> This is the second practice round. Again, please choose how many cards you want to turn over, from 0 to 32, based on the number of loss cards and the gain/loss points shown below. You will choose only the number of cards; the computer will randomly select which cards are revealed. The computer will record your score for each round. After all " + numRounds + " real rounds, you will see your total score.</div></div>"+
+ 	"<div class = practiceText><div class = block-text2>Practice Round 2 of 2</div></div>"+
 	"<div class = cct-box2>"+
-	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: 2</div></div>   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: <strong style=\"color:red\">750</strong></div></div>    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: <strong style=\"color:red\">10</strong></div></div>    <div class = titlebox><div class = center-text>How many cards do you want to take? </div></div>     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: <strong style=\"color:red\">3</strong></div></div>"+
-	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>Next Round</button></div>"+
+	coldHeader(2, 750, 10, 3)+
+	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>NEXT ROUND</button></div>"+
+	coldSubPrompt()+
 	getButtons()+
 	"</div>"+
 	getBoard()	
@@ -318,8 +296,9 @@ var shuffledParamsArray = jsPsych.randomization.repeat(paramsArray, numRounds / 
 
 var gameSetup =
 	"<div class = cct-box-game>"+
-	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: </div></div>   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: </div></div>    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: </div></div>    <div class = titlebox><div class = center-text>How many cards do you want to take? </div></div>     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: </div></div>" +
-	"<div class = buttonbox-game><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>Next Round</button></div>"+
+	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: </div></div>   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: </div></div>    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: </div></div>    <div class = titlebox><div class = center-text id = round_prompt>" + PROMPT_CHOOSE + "</div></div>     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: </div></div>" +
+	"<div class = buttonbox-game><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>NEXT ROUND</button></div>"+
+	coldSubPrompt('game')+
 	getButtons('game')+
 	"</div>"+
 	getBoard()
@@ -343,110 +322,154 @@ var post_task_block = {
 };
 
 /* define static blocks */
-var feedback_instruct_text =
-	'Welcome to the experiment. Press <strong>enter</strong> to begin.'
-var feedback_instruct_block = {
-	type: 'poldrack-text',
-	cont_key: [13],
-	data: {
-		trial_id: 'instruction'
-	},
-	text: getInstructFeedback,
-	timing_post_trial: 0,
-	timing_response: 180000
-};
-/// This ensures that the subject does not read through the instructions too quickly.  If they do it too quickly, then we will go over the loop again.
-var instruction_trials = []
-var instructions_block = {
-  type: 'poldrack-instructions',
-  data: {trial_id: 'instruction'},
-  pages: [
-	'<div class = centerbox style="font-size: 26.1px; line-height: 130%;"><p class = block-text><strong>Introduction</strong></p>'+
-	'<p>You will now play a card game. In this game, you can win or lose points. Points are worth money.</p>'+
-	'<p>In each round, you will see 32 face-down cards. Each card is either:</p>'+
-	'<ul><li>a gain card, which adds points to your score</li>'+
-	'<li>a loss card, which subtracts points from your score and ends the round</li></ul>'+
-	'<p>There are no neutral cards.</p>'+
-	'<p>Before each round, you will be told:</p>'+
-	'<ul><li>how many loss cards are in the deck</li>'+
-	'<li>how many points you gain for each gain card</li>'+
-	'<li>how many points you lose if a loss card appears</li></ul>'+
-	'<p>You will not know which specific face-down cards are gain cards or loss cards.</p>'+
-	'<p>In each round, you will choose how many cards you want to turn over, from 0 to 32. You will not choose the specific cards. Instead, the computer will randomly select and reveal that many cards from the 32 face-down cards.</p>'+
-	'<p>For each gain card revealed, points are added to your score for that round. If a loss card is revealed, points are subtracted from your score and the round ends immediately.</p>'+
-	'<p>If you chose to turn over more cards, the remaining selected cards will be shown for transparency, but they will not affect your score.</p>'+
-	'<p>Each round starts at 0 points, so each round is independent.</p>'+
-	'<p>You will play ' + numRounds + ' rounds. At the end, 3 rounds will be randomly selected, and your bonus payment will be based on your scores in those rounds.</p></div>',
-	
-    '<div class = centerbox style="text-align:center;"><p class = block-text style="text-align:center;"><strong>Unknown Cards</strong></p>'+
-    '<p style="text-align:center;">This is what an unknown card looks like.</p>'+
-    '<p style="text-align:center;">Click the card to turn it over.</p>'+
-    "<p style=\"text-align:center;\"><input type='image' id = '133' src='images/beforeChosen.png' onclick = instructButton(this.id)>"+
-	'</p></div>',
 
-	'<div class = centerbox style="text-align:center;"><p class = block-text style="text-align:center;">There are two types of cards:</p>'+
-	'<p style="text-align:center;"><strong>Gain cards:</strong></p>'+
-	'<p style="text-align:center;">Each gain card increases your score by either 10 or 30 points, depending on the round.</p>'+
-	"<p style=\"text-align:center;\"><input type='image' src='images/chosen.png'></p>"+
-	'<p style="text-align:center;"><strong>Loss cards:</strong></p>'+
-	"<p style=\"text-align:center;\"><input type='image' src='images/loss.png'></p>"+
-	'<p style="text-align:center;">Each loss card decreases your score by either 250 or 750 points, depending on the round. If a loss card appears, the round ends immediately.</p>'+
-	'<p style="text-align:center;">Each round will have either 1 or 3 loss cards among the 32 cards.</p>'+
-	'<p style="text-align:center;">The number of loss cards, the gain amount, and the loss amount will always be shown on the screen during the round.</p>'+
-	'</div>',
-	
-	"<div class = practiceText><div class = block-text2 id = instruct1><strong>Example 1.</strong> In this example, there are 32 face-down cards. The display tells you there is 1 loss card, each gain card is worth 10 points, and the loss card costs 750 points. Suppose you choose to turn over 7 cards; the computer will randomly select and reveal 7 of the 32 cards. <span style=\"color:red; text-decoration:underline;\">Click <strong>See Result</strong> to see what happens.</span></div></div>"+
-	"<div class = cct-box2>"+
-	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text>Game Round: 1</div></div>   <div class = titleboxLeft1><div class = center-text>Loss Amount: <strong style=\"color:red\">750</strong></div></div>    <div class = titleboxMiddle1><div class = center-text>Gain Amount: <strong style=\"color:red\">10</strong></div></div>    <div class = titlebox><div class = center-text>How many cards do you want to take? </div></div>     <div class = titleboxRight1><div class = center-text>Number of Loss Cards: <strong style=\"color:red\">1</strong></div></div>   <div class = titleboxRight><div class = center-text id = current_round>Current Round Points: 0</div></div>"+
-	"<div class = buttonbox2><button type='button' class = CCT-btn id = instructButton onclick= instructFunction()>See Result</button></div></div>"+
-	getBoard(2),
-	
-	"<div class = practiceText><div class = block-text2 id = instruct2><strong>Example 2.</strong> In this example, there are 32 face-down cards. The display tells you there are 3 loss cards, each gain card is worth 30 points, and each loss card costs 250 points. Suppose you choose to turn over 10 cards; the computer will randomly select and reveal up to 10 of the 32 cards. <span style=\"color:red; text-decoration:underline;\">Click <strong>See Result</strong> to see what happens.</span></div></div>"+
-	"<div class = cct-box2>"+
-	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text>Game Round: 1</div></div>   <div class = titleboxLeft1><div class = center-text>Loss Amount: <strong style=\"color:red\">250</strong></div></div>    <div class = titleboxMiddle1><div class = center-text>Gain Amount: <strong style=\"color:red\">30</strong></div></div>    <div class = titlebox><div class = center-text>How many cards do you want to take? </div></div>     <div class = titleboxRight1><div class = center-text>Number of Loss Cards: <strong style=\"color:red\">3</strong></div></div>   <div class = titleboxRight><div class = center-text id = current_round>Current Round Points: 0</div></div>"+
-	"<div class = buttonbox2><button type='button' class = CCT-btn id = instructButton onclick= instructFunction2()>See Result</button></div></div>"+
-	getBoard(2),
-	"<div class = centerbox><p class = block-text>You will now complete two practice rounds before the real game begins.</p><p class = block-text>Please make sure you understand the examples before continuing.</p></div>"
-  ],
-  allow_keys: false,
-  show_clickable_nav: true,
-  timing_post_trial: 1000
-};
-instruction_trials.push(feedback_instruct_block)
-instruction_trials.push(instructions_block)
+/* ---------------------------------------------------------------- */
+/* Instruction page helpers                                          */
+/* ---------------------------------------------------------------- */
+function instrPage(heading, body) {
+	return '<div class = instr-page>' +
+		'<div class = instr-heading>' + heading + '</div>' +
+		'<div class = instr-body>' + body + '</div>' +
+		'</div>'
+}
 
-var instruction_node = {
-	timeline: instruction_trials,
-	/* This function defines stopping criteria */
-	loop_function: function(data) {
-		for (i = 0; i < data.length; i++) {
-			if ((data[i].trial_type == 'poldrack-instructions') && (data[i].rt != -1)) {
-				rt = data[i].rt
-				sumInstructTime = sumInstructTime + rt
-			}
-		}
-		if (sumInstructTime <= instructTimeThresh * 1000) {
-			feedback_instruct_text =
-				'Read through instructions too quickly.  Please take your time and make sure you understand the instructions.  Press <strong>enter</strong> to continue.'
-			return true
-		} else if (sumInstructTime > instructTimeThresh * 1000) {
-			feedback_instruct_text = 'Done with instructions. Press <strong>enter</strong> to continue.'
-			return false
-		}
+function instrTrial(html, buttonLabel) {
+	return {
+		type: 'poldrack-instructions',
+		data: { trial_id: 'instruction' },
+		pages: [html],
+		allow_keys: false,
+		show_clickable_nav: true,
+		button_label_last: buttonLabel,
+		timing_post_trial: 500
 	}
 }
 
-var end_instructions = {
-	type: 'poldrack-single-stim',
-	stimulus: '<div class = centerbox><p class = center-block-text><strong>End of Instructions </strong></p><p class = center-block-text>Press <strong>enter</strong> when you are ready to play the game.</p></div>',
+/* ---------------------------------------------------------------- */
+/* Common pages A1-A4 (first game only)                              */
+/* ---------------------------------------------------------------- */
+var common_page_A1 = instrTrial(instrPage('Two Card Games',
+	'<p>You will complete two card games.</p>' +
+	'<p>Before each game, you will read instructions and complete two practice rounds.</p>' +
+	'<p>Please read each set of instructions carefully before beginning the game.</p>'), 'CONTINUE');
+
+var common_page_A2 = instrTrial(instrPage('Cards and Points',
+	'<p>Each round has 32 face-down cards.</p>' +
+	'<p>There are two types of cards:</p>' +
+	'<div class = card-legend>' +
+		'<div class = card-legend-item>' +
+			'<img class = legend-card src="images/chosen.png">' +
+			'<div class = card-legend-text><strong>Gain card</strong><br>A gain card adds points to your score.</div>' +
+		'</div>' +
+		'<div class = card-legend-item>' +
+			'<img class = legend-card src="images/loss.png">' +
+			'<div class = card-legend-text><strong>Loss card</strong><br>A loss card subtracts points from your score.</div>' +
+		'</div>' +
+	'</div>' +
+	'<p>There are no neutral cards.</p>' +
+	'<p>At the beginning of each round, the screen will show:</p>' +
+	'<ul><li>the number of loss cards among the 32 cards: 1 or 3;</li>' +
+	'<li>the points added by each gain card: 10 or 30 points;</li>' +
+	'<li>the points subtracted by a loss card: 250 or 750 points.</li></ul>' +
+	'<p>You will not know where the gain cards and loss cards are located.</p>' +
+	'<p>Points are worth money.</p>'), 'CONTINUE');
+
+var common_page_A3 = instrTrial(instrPage('How a Round Is Scored',
+	'<p>Cards are scored in order.</p>' +
+	'<p>Each gain card that counts adds the gain amount shown for that round.</p>' +
+	'<p>If a loss card occurs, the loss amount is subtracted and scoring for that round ' +
+	'stops. Any cards after the first loss card do not affect the score.</p>' +
+	'<p>For example:</p>' +
+	'<div class = example-box>' +
+		'<p>If 7 gain cards count and each gain card is worth 10 points:</p>' +
+		'<p class = example-math>7 &times; 10 = 70 points</p>' +
+	'</div>' +
+	'<div class = example-box>' +
+		'<p>If 3 gain cards count before a loss card, each gain card is worth 30 points, ' +
+		'and the loss amount is 250 points:</p>' +
+		'<p class = example-math>3 &times; 30 &minus; 250 = &minus;160 points</p>' +
+	'</div>'), 'CONTINUE');
+
+var common_page_A4 = instrTrial(instrPage('Rounds and Payment',
+	'<p>Each round begins at 0 points.</p>' +
+	'<p>Each round is independent. Your result in one round does not change the cards or ' +
+	'point values in another round.</p>' +
+	'<p>You will play ' + numRounds + ' rounds in each game.</p>' +
+	'<p>At the end, 3 rounds will be randomly selected, and your bonus payment will be ' +
+	'based on your scores in those rounds.</p>' +
+	'<p>Next, you will see how to play the first game.</p>'), 'CONTINUE');
+
+/* ---------------------------------------------------------------- */
+/* Transition page (second game only)                                */
+/* ---------------------------------------------------------------- */
+var transition_page = instrTrial(instrPage('Second Card Game',
+	'<p>You have finished the first card game.</p>' +
+	'<p>In the next game, you will use numbered buttons to choose how many cards to take.</p>' +
+	'<p>The cards will remain face-down after you make your choice.</p>' +
+	'<p>Please read the following instructions carefully before beginning.</p>'), 'CONTINUE');
+
+/* ---------------------------------------------------------------- */
+/* Cold page C1 - How to Play                                        */
+/* ---------------------------------------------------------------- */
+var cold_page_C1 = instrTrial(instrPage('How to Play',
+	'<p>At the beginning of each round, choose how many cards you want to take.</p>' +
+	'<p>Click one numbered button from 0 to 32.</p>' +
+	'<p>The computer will randomly determine which cards are selected.</p>' +
+	'<p>Use the numbered buttons to make your choice. The card images are not buttons.</p>' +
+	'<p>Selecting 0 means taking no cards. Your score for that round will be 0.</p>'), 'CONTINUE');
+
+/* ---------------------------------------------------------------- */
+/* Cold page C2 - How Your Choice Is Scored                          */
+/* ---------------------------------------------------------------- */
+var cold_page_C2 = instrTrial(instrPage('How Your Choice Is Scored',
+	'<p>After you choose a number, the computer evaluates that number of cards in a ' +
+	'random order.</p>' +
+	'<p>Each gain card before the first loss card adds the gain amount shown for that ' +
+	'round.</p>' +
+	'<p>If a loss card occurs, the loss amount is subtracted and scoring for that round ' +
+	'stops. Any selected cards after the first loss card do not affect the score.</p>' +
+	'<p>The cards will remain face-down.</p>' +
+	'<p>You will not see which cards the computer selected, and the screen will not tell ' +
+	'you during that round whether a selected card was a loss card.</p>' +
+	'<p>Your choice and score will be recorded automatically.</p>'), 'CONTINUE');
+
+/* ---------------------------------------------------------------- */
+/* Cold tutorial C3 - Try It                                         */
+/* ---------------------------------------------------------------- */
+var cold_tutorial_block = {
+	type: 'single-stim-button',
+	button_class: 'select-button',
+	stimulus: getColdTutorial,
 	is_html: true,
 	data: {
-		trial_id: 'end_instructions'
+		trial_id: 'instruction',
+		exp_stage: 'tutorial'
 	},
-	choices: [13],
-	timing_post_trial: 0,
-	response_ends_trial: true,
+	timing_post_trial: 500,
+	response_ends_trial: true
 };
+
+/* ---------------------------------------------------------------- */
+/* Cold page C4 - Practice Rounds                                    */
+/* ---------------------------------------------------------------- */
+var cold_page_C4 = instrTrial(instrPage('Practice Rounds',
+	'<p>You will now complete two practice rounds.</p>' +
+	'<p>These practice rounds work like the real game.</p>' +
+	'<p>Before making your choice, pay attention to:</p>' +
+	'<ul><li>the number of loss cards;</li>' +
+	'<li>the gain amount;</li>' +
+	'<li>the loss amount.</li></ul>' +
+	'<p>Use the numbered buttons to choose how many cards you want to take.</p>' +
+	'<p>After you choose a number, the cards will remain face-down.</p>'), 'START PRACTICE');
+
+// Cold page C5 - Ready to Begin
+var end_instructions = instrTrial(instrPage('Ready to Begin',
+	'<p>The practice rounds are complete.</p>' +
+	'<p>You will now play ' + numRounds + ' rounds.</p>' +
+	'<p>In each round, select one number from 0 to 32.</p>' +
+	'<p>After you select a number, the cards will remain face-down. ' +
+	'Click <strong>NEXT ROUND</strong> to continue.</p>'), 'BEGIN GAME');
+end_instructions.data = { trial_id: 'end_instructions' };
 
 var end_block = {
 	type: 'poldrack-text',
@@ -454,20 +477,11 @@ var end_block = {
 		trial_id: 'end',
 		exp_id: 'columbia_card_task_cold'
 	},
-	text: '<div class = centerbox><p class = center-block-text>Finished with this task.</p><p class = center-block-text>Press <strong>enter</strong> to continue.</p></div>',
+	text: '<div class = centerbox><p class = center-block-text>Please wait.</p></div>',
 	cont_key: [13],
+	timing_response: 1200,
 	timing_post_trial: 0,
   	on_finish: assessPerformance
-};
-
-var start_test_block = {
-	type: 'poldrack-text',
-	data: {
-		trial_id: 'test_intro'
-	},
-	text: '<div class = centerbox><p class = center-block-text>We will now start the test. Press <strong>enter</strong> to begin.</p></div>',
-	cont_key: [13],
-	timing_post_trial: 1000
 };
 
 var practice_block1 = {
@@ -567,10 +581,24 @@ var payoutTrial = {
 
 /* create experiment definition array */
 var columbia_card_task_cold_experiment = [];
-columbia_card_task_cold_experiment.push(instruction_node);
+
+// Common instructions are shown once, before the first game only.
+if (IS_FIRST_TASK) {
+	columbia_card_task_cold_experiment.push(common_page_A1);
+	columbia_card_task_cold_experiment.push(common_page_A2);
+	columbia_card_task_cold_experiment.push(common_page_A3);
+	columbia_card_task_cold_experiment.push(common_page_A4);
+} else {
+	columbia_card_task_cold_experiment.push(transition_page);
+}
+
+columbia_card_task_cold_experiment.push(cold_page_C1);
+columbia_card_task_cold_experiment.push(cold_page_C2);
+columbia_card_task_cold_experiment.push(cold_tutorial_block);
+columbia_card_task_cold_experiment.push(cold_page_C4);
 columbia_card_task_cold_experiment.push(practice_block1);
 columbia_card_task_cold_experiment.push(practice_block2);
-columbia_card_task_cold_experiment.push(end_instructions)
+columbia_card_task_cold_experiment.push(end_instructions);
 for (b = 0; b < numRounds; b++) {
 	columbia_card_task_cold_experiment.push(test_block);
 
