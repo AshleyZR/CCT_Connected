@@ -22,6 +22,10 @@
 <script src='js/jspsych/plugins/jspsych-survey-text.js'></script>
 <script src='js/jspsych/poldrack_plugins/jspsych-single-stim-button.js'></script>
 <script src='js/jspsych/poldrack_plugins/poldrack_utils.js'></script>
+<script>
+// Position of this task in the chained sequence: 0 = first game, 1 = second game.
+var CHAIN_INDEX = parseInt(new URLSearchParams(window.location.search).get('i') || '0', 10);
+</script>
 <script src='experiment.js'></script>
 
 <script>
@@ -91,23 +95,8 @@ function saveFilteredCSV(filename, dropCols) {
 
 var IN_CHAINED_MODE = new URLSearchParams(window.location.search).has('s');
 
-function showInterstitialIfChained(onDone) {
-    var params = new URLSearchParams(window.location.search);
-    var idx = parseInt(params.get('i') || '0', 10);
-    if (idx <= 0) { onDone(); return; }
-    var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:40px;text-align:center;font-family:sans-serif;';
-    overlay.innerHTML = '<p style="font-size:26px;max-width:800px;line-height:1.5;color:#111;">The next game has different instructions and rules than the one you just played. Please read the following pages carefully.</p><button id="interstitial-continue" style="font-size:20px;padding:12px 32px;margin-top:36px;cursor:pointer;border:none;border-radius:6px;background:#2563eb;color:#fff;">Continue</button>';
-    document.body.appendChild(overlay);
-    document.getElementById('interstitial-continue').addEventListener('click', function() {
-        overlay.remove();
-        onDone();
-    });
-}
-
 $( document ).ready(function() {
 
-  showInterstitialIfChained(function() {
     jsPsych.init({
              timeline: columbia_card_task_hot_experiment,
              display_element: "getDisplayElement",
@@ -167,7 +156,6 @@ $( document ).ready(function() {
              }
 
       });
-  });
 });
 </script>
 </body>
