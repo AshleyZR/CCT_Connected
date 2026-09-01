@@ -334,13 +334,22 @@ function instrPage(heading, body) {
 }
 
 function instrTrial(html, buttonLabel) {
+	return instrBlock([html], buttonLabel)
+}
+
+// Contiguous instruction pages share one trial so the participant can page
+// backwards through them with BACK.
+function instrBlock(pages, lastButtonLabel) {
 	return {
 		type: 'poldrack-instructions',
 		data: { trial_id: 'instruction' },
-		pages: [html],
+		pages: pages,
 		allow_keys: false,
+		allow_backward: true,
 		show_clickable_nav: true,
-		button_label_last: buttonLabel,
+		button_label_next: 'CONTINUE',
+		button_label_back: 'BACK',
+		button_label_last: lastButtonLabel,
 		timing_post_trial: 500
 	}
 }
@@ -348,12 +357,12 @@ function instrTrial(html, buttonLabel) {
 /* ---------------------------------------------------------------- */
 /* Common pages A1-A4 (first game only)                              */
 /* ---------------------------------------------------------------- */
-var common_page_A1 = instrTrial(instrPage('Two Card Games',
+var PAGE_A1 = instrPage('Two Card Games',
 	'<p>You will complete two card games.</p>' +
 	'<p>Before each game, you will read instructions and complete two practice rounds.</p>' +
-	'<p>Please read each set of instructions carefully before beginning the game.</p>'), 'CONTINUE');
+	'<p>Please read each set of instructions carefully before beginning the game.</p>');
 
-var common_page_A2 = instrTrial(instrPage('Cards and Points',
+var PAGE_A2 = instrPage('Cards and Points',
 	'<p>Each round has 32 face-down cards.</p>' +
 	'<p>There are two types of cards:</p>' +
 	'<div class = card-legend>' +
@@ -372,9 +381,9 @@ var common_page_A2 = instrTrial(instrPage('Cards and Points',
 	'<li>the points added by each gain card: 10 or 30 points;</li>' +
 	'<li>the points subtracted by a loss card: 250 or 750 points.</li></ul>' +
 	'<p>You will not know where the gain cards and loss cards are located.</p>' +
-	'<p>Points are worth money.</p>'), 'CONTINUE');
+	'<p>Points are worth money.</p>');
 
-var common_page_A3 = instrTrial(instrPage('How a Round Is Scored',
+var PAGE_A3 = instrPage('How a Round Is Scored',
 	'<p>Cards are scored in order.</p>' +
 	'<p>Each gain card that counts adds the gain amount shown for that round.</p>' +
 	'<p>If a loss card occurs, the loss amount is subtracted and scoring for that round ' +
@@ -388,40 +397,40 @@ var common_page_A3 = instrTrial(instrPage('How a Round Is Scored',
 		'<p>If 3 gain cards count before a loss card, each gain card is worth 30 points, ' +
 		'and the loss amount is 250 points:</p>' +
 		'<p class = example-math>3 &times; 30 &minus; 250 = &minus;160 points</p>' +
-	'</div>'), 'CONTINUE');
+	'</div>');
 
-var common_page_A4 = instrTrial(instrPage('Rounds and Payment',
+var PAGE_A4 = instrPage('Rounds and Payment',
 	'<p>Each round begins at 0 points.</p>' +
 	'<p>Each round is independent. Your result in one round does not change the cards or ' +
 	'point values in another round.</p>' +
 	'<p>You will play ' + numRounds + ' rounds in each game.</p>' +
 	'<p>At the end, 3 rounds will be randomly selected, and your bonus payment will be ' +
 	'based on your scores in those rounds.</p>' +
-	'<p>Next, you will see how to play the first game.</p>'), 'CONTINUE');
+	'<p>Next, you will see how to play the first game.</p>');
 
 /* ---------------------------------------------------------------- */
 /* Transition page (second game only)                                */
 /* ---------------------------------------------------------------- */
-var transition_page = instrTrial(instrPage('Second Card Game',
+var PAGE_TRANSITION = instrPage('Second Card Game',
 	'<p>You have finished the first card game.</p>' +
 	'<p>In the next game, you will use numbered buttons to choose how many cards to take.</p>' +
 	'<p>The cards will remain face-down after you make your choice.</p>' +
-	'<p>Please read the following instructions carefully before beginning.</p>'), 'CONTINUE');
+	'<p>Please read the following instructions carefully before beginning.</p>');
 
 /* ---------------------------------------------------------------- */
 /* Cold page C1 - How to Play                                        */
 /* ---------------------------------------------------------------- */
-var cold_page_C1 = instrTrial(instrPage('How to Play',
+var PAGE_C1 = instrPage('How to Play',
 	'<p>At the beginning of each round, choose how many cards you want to take.</p>' +
 	'<p>Click one numbered button from 0 to 32.</p>' +
-	'<p>The computer will randomly determine which cards are selected.</p>' +
+	'<p><strong>The computer will randomly determine which cards are selected.</strong></p>' +
 	'<p>Use the numbered buttons to make your choice. The card images are not buttons.</p>' +
-	'<p>Selecting 0 means taking no cards. Your score for that round will be 0.</p>'), 'CONTINUE');
+	'<p>Selecting 0 means taking no cards. Your score for that round will be 0.</p>');
 
 /* ---------------------------------------------------------------- */
 /* Cold page C2 - How Your Choice Is Scored                          */
 /* ---------------------------------------------------------------- */
-var cold_page_C2 = instrTrial(instrPage('How Your Choice Is Scored',
+var PAGE_C2 = instrPage('How Your Choice Is Scored',
 	'<p>After you choose a number, the computer evaluates that number of cards in a ' +
 	'random order.</p>' +
 	'<p>Each gain card before the first loss card adds the gain amount shown for that ' +
@@ -431,7 +440,7 @@ var cold_page_C2 = instrTrial(instrPage('How Your Choice Is Scored',
 	'<p>The cards will remain face-down.</p>' +
 	'<p>You will not see which cards the computer selected, and the screen will not tell ' +
 	'you during that round whether a selected card was a loss card.</p>' +
-	'<p>Your choice and score will be recorded automatically.</p>'), 'CONTINUE');
+	'<p>Your choice and score will be recorded automatically.</p>');
 
 /* ---------------------------------------------------------------- */
 /* Cold tutorial C3 - Try It                                         */
@@ -582,18 +591,13 @@ var payoutTrial = {
 /* create experiment definition array */
 var columbia_card_task_cold_experiment = [];
 
-// Common instructions are shown once, before the first game only.
-if (IS_FIRST_TASK) {
-	columbia_card_task_cold_experiment.push(common_page_A1);
-	columbia_card_task_cold_experiment.push(common_page_A2);
-	columbia_card_task_cold_experiment.push(common_page_A3);
-	columbia_card_task_cold_experiment.push(common_page_A4);
-} else {
-	columbia_card_task_cold_experiment.push(transition_page);
-}
+// Common instructions are shown once, before the first game only. They share a
+// single trial with the game-specific pages so BACK can page through them.
+var intro_pages = IS_FIRST_TASK
+	? [PAGE_A1, PAGE_A2, PAGE_A3, PAGE_A4, PAGE_C1, PAGE_C2]
+	: [PAGE_TRANSITION, PAGE_C1, PAGE_C2];
 
-columbia_card_task_cold_experiment.push(cold_page_C1);
-columbia_card_task_cold_experiment.push(cold_page_C2);
+columbia_card_task_cold_experiment.push(instrBlock(intro_pages, 'CONTINUE'));
 columbia_card_task_cold_experiment.push(cold_tutorial_block);
 columbia_card_task_cold_experiment.push(cold_page_C4);
 columbia_card_task_cold_experiment.push(practice_block1);
