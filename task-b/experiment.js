@@ -65,11 +65,64 @@ var appendTestData = function() {
 	})
 }
 
-var getButtons = function(buttonType, handler) {
+/* ---------------------------------------------------------------- */
+/* Shared responsive screen builder.                                  */
+/* Every section is a block in normal flow, stacked by .game-layout,  */
+/* so each one pushes the next down instead of overlaying it.         */
+/* ---------------------------------------------------------------- */
+var statusBox = function(id, label, value, highlight) {
+	var body = (value === undefined || value === null || value === '')
+		? label
+		: label + ' <strong class = "status-value' + (highlight ? ' status-highlight' : '') + '">' + value + '</strong>'
+	return '<div class = status-box><span id = "' + id + '">' + body + '</span></div>'
+}
+
+var coldStatus = function(round, lossAmount, gainAmount, lossCards) {
+	return statusBox('game_round', 'Game Round:', round) +
+		statusBox('loss_amount', 'Loss Amount:', lossAmount, true) +
+		statusBox('gain_amount', 'Gain Amount:', gainAmount, true) +
+		statusBox('num_loss_cards', 'Number of Loss Cards:', lossCards, true)
+}
+
+var gameScreen = function(parts) {
+	var html = '<div class = game-layout>'
+	if (parts.heading) {
+		html += '<h1 class = gl-heading>' + parts.heading + '</h1>'
+	}
+	if (parts.status) {
+		html += '<div class = gl-status>' + parts.status + '</div>'
+	}
+	if (parts.lead !== undefined) {
+		html += '<div class = gl-lead id = tutorial_text>' + parts.lead + '</div>'
+	}
+	if (parts.prompt !== undefined) {
+		html += '<p class = gl-prompt id = round_prompt>' + parts.prompt + '</p>'
+	}
+	if (parts.subprompt !== undefined) {
+		html += '<p class = gl-subprompt id = sub_prompt>' + parts.subprompt + '</p>'
+	}
+	// Feedback row: collapses to nothing while empty, pushes content down when filled.
+	html += '<p class = gl-message id = card_click_msg></p>'
+	if (parts.actions) {
+		html += '<div class = gl-actions>' + parts.actions + '</div>'
+	}
+	if (parts.numbers) {
+		html += '<div class = gl-numbers>' + parts.numbers + '</div>'
+	}
+	if (parts.cards) {
+		html += '<div class = gl-cards>' + parts.cards + '</div>'
+	}
+	if (parts.footer) {
+		html += '<div class = gl-footer>' + parts.footer + '</div>'
+	}
+	html += '</div>'
+	return html
+}
+
+// Returns the 0-32 buttons only; the caller wraps them in the wrapping .gl-numbers row.
+var getButtons = function(handler) {
 	var fn = handler || 'chooseButton'
-	var buttons = ""
-	var containerClass = (buttonType == 'game') ? 'allbuttons-game' : 'allbuttons'
-	buttons = "<div class = " + containerClass + ">"
+	var buttons = ''
 	for (i = 0; i < 33; i++) {
 		buttons += "<button type = 'button' class = 'CCT-btn chooseButton' id = " + i +
 			" onclick = " + fn + "(this.id)>" + i + "</button>"
@@ -77,17 +130,21 @@ var getButtons = function(buttonType, handler) {
 	return buttons
 }
 
-var getBoard = function(board_type) {
+var nextRoundButton = function(withTimerClear) {
+	return "<button type='button' id = nextButton class = 'CCT-btn select-button'" +
+		(withTimerClear ? " onclick = clearTimers()" : "") + " disabled>NEXT ROUND</button>"
+}
+
+var getBoard = function() {
 	// Cards are never response controls in this task: not focusable, and a click only
 	// shows a corrective message. They stay face-down for the whole round.
-	var containerClass = (board_type == 2) ? 'cardbox' : 'cardbox2'
-	var board = "<div class = " + containerClass + ">"
+	// Returns card elements only; the caller wraps them in the .gl-cards grid.
+	var cards = ''
 	for (i = 1; i < 33; i++) {
-		board += "<div class = square><input class = 'card_image display-card' type='image' id = c" + i +
-			" src='images/beforeChosen.png' tabindex='-1' onclick = cardNotAResponse()></div>"
+		cards += "<input class = 'card_image display-card' type='image' id = c" + i +
+			" src='images/beforeChosen.png' tabindex='-1' onclick = cardNotAResponse()>"
 	}
-	board += "</div>"
-	return board
+	return cards
 }
 
 function clearTimers() {
@@ -162,12 +219,7 @@ var getRound = function() {
 	for (i = 0; i < numLossCards; i++) {
 		whichLossCards.push(shuffledCardArray.pop())
 	}
-	gameState = gameSetup
-	gameState = appendTextAfter(gameState, 'Game Round: ', whichRound)
-	gameState = appendTextAfter(gameState, 'Loss Amount: ', '<strong style=\"color:red\">' + lossAmt + '</strong>')
-	gameState = appendTextAfter(gameState, 'Number of Loss Cards: ', '<strong style=\"color:red\">' + numLossCards + '</strong>')
-	gameState = appendTextAfter(gameState, 'Gain Amount: ', '<strong style=\"color:red\">' + gainAmt + '</strong>')
-	return gameState
+	return coldRoundScreen(whichRound, lossAmt, gainAmt, numLossCards)
 }
 
 
@@ -200,21 +252,19 @@ var prize2 = 0
 var prize3 = 0
 
 // Header panel shared by the tutorial, practice rounds and real rounds.
-var coldHeader = function(roundLabel, lossAmount, gainAmount, lossCards) {
-	return "<div class = titleBigBox>" +
-		"   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: " + roundLabel + "</div></div>" +
-		"   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: <strong style=\"color:red\">" + lossAmount + "</strong></div></div>" +
-		"    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: <strong style=\"color:red\">" + gainAmount + "</strong></div></div>" +
-		"    <div class = titlebox><div class = center-text id = round_prompt>" + PROMPT_CHOOSE + "</div></div>" +
-		"     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: <strong style=\"color:red\">" + lossCards + "</strong></div></div>"
-}
-
-// The real rounds place the numbered buttons higher than practice does, so the
-// sub-prompt and message boxes need matching variants to stay adjacent to them.
-var coldSubPrompt = function(variant) {
-	var suffix = (variant === 'game') ? '-game' : ''
-	return "<div class = 'subpromptbox" + suffix + "'><div class = center-text id = sub_prompt>" + SUBPROMPT_CHOOSE + "</div></div>" +
-		"<div class = 'cardmsgbox" + suffix + "'><div class = center-text id = card_click_msg></div></div>"
+// One screen shape for the tutorial, practice rounds and real rounds.
+var coldRoundScreen = function(round, lossAmount, gainAmount, lossCards, opts) {
+	opts = opts || {}
+	return gameScreen({
+		heading: opts.heading,
+		status: coldStatus(round, lossAmount, gainAmount, lossCards),
+		lead: opts.lead,
+		prompt: PROMPT_CHOOSE,
+		subprompt: SUBPROMPT_CHOOSE,
+		actions: nextRoundButton(!opts.tutorial),
+		numbers: getButtons(opts.tutorial ? 'tutorialChoose' : 'chooseButton'),
+		cards: getBoard()
+	})
 }
 
 /* ---------------------------------------------------------------- */
@@ -238,40 +288,16 @@ var tutorialChoose = function(clicked_id) {
 }
 
 var getColdTutorial = function() {
-	return "<div class = practiceText>" +
-		"<div class = block-text2 id = tutorial_heading>Try It</div>" +
-		"<div class = block-text2 id = tutorial_text>Suppose you want to take 7 cards.<br>Use the numbered buttons below to select 7.</div>" +
-		"</div>" +
-		"<div class = cct-box2>" +
-		coldHeader(1, 250, 30, 1) +
-		"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' disabled>NEXT ROUND</button></div>" +
-		coldSubPrompt() +
-		getButtons('', 'tutorialChoose') +
-		"</div>" +
-		getBoard()
+	return coldRoundScreen(1, 250, 30, 1, {
+		heading: '<span id = tutorial_heading>Try It</span>',
+		lead: 'Suppose you want to take 7 cards.<br>Use the numbered buttons below to select 7.',
+		tutorial: true
+	})
 }
 
-var practiceSetup1 =
-	"<div class = practiceText><div class = block-text2>Practice Round 1 of 2</div></div>" +
-	"<div class = cct-box2>"+
-	coldHeader(1, 250, 30, 1)+
-	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>NEXT ROUND</button></div>"+
-	coldSubPrompt()+
-	getButtons()+
-	"</div>"+
-	getBoard()
+var practiceSetup1 = coldRoundScreen(1, 250, 30, 1, { heading: 'Practice Round 1 of 2' })
 
-
-
-var practiceSetup2 =
- 	"<div class = practiceText><div class = block-text2>Practice Round 2 of 2</div></div>"+
-	"<div class = cct-box2>"+
-	coldHeader(2, 750, 10, 3)+
-	"<div class = buttonbox><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>NEXT ROUND</button></div>"+
-	coldSubPrompt()+
-	getButtons()+
-	"</div>"+
-	getBoard()	
+var practiceSetup2 = coldRoundScreen(2, 750, 10, 3, { heading: 'Practice Round 2 of 2' })
 	
 	
 // this params array is organized such that the 0 index = the number of loss cards in round, the 1 index = the gain amount of each happy card, and the 2nd index = the loss amount when you turn over a sad face
@@ -293,15 +319,6 @@ var cardArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
 var shuffledCardArray = jsPsych.randomization.repeat(cardArray, 1)
 var shuffledParamsArray = jsPsych.randomization.repeat(paramsArray, numRounds / paramsArray.length)
 
-
-var gameSetup =
-	"<div class = cct-box-game>"+
-	"<div class = titleBigBox>   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: </div></div>   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: </div></div>    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: </div></div>    <div class = titlebox><div class = center-text id = round_prompt>" + PROMPT_CHOOSE + "</div></div>     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: </div></div>" +
-	"<div class = buttonbox-game><button type='button' id = nextButton class = 'CCT-btn select-button' onclick = clearTimers() disabled>NEXT ROUND</button></div>"+
-	coldSubPrompt('game')+
-	getButtons('game')+
-	"</div>"+
-	getBoard()
 
 
 
@@ -548,22 +565,7 @@ var test_block = {
 
 var round_delay = {
 	type: 'single-stim-button',
-	stimulus: `
-	<div style="
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 800px;
-		height: 500px;
-		background: white;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	">
-		<div style="font-size: 48px; color: black;">+</div>
-	</div>
-`,
+	stimulus: '<div class = fixation-block>+</div>',
 	is_html: true,
 	choices: [''],
 	button_html: '<button style="display:none;"></button>',
