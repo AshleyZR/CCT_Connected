@@ -694,7 +694,10 @@ var round_delay = {
   choices: [''],
   button_html: '<button style="display:none;"></button>',
   response_ends_trial: false,
-  timing_response: 5000
+  timing_response: 5000,
+  // The fixation is the whole inter-round pause. Without this the plugin's
+  // 1000ms default ITI would add a blank second after every cross.
+  timing_post_trial: 0
 };
 
 // var round_delay = {
