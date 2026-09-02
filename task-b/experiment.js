@@ -570,7 +570,7 @@ var round_delay = {
 	choices: [''],
 	button_html: '<button style="display:none;"></button>',
 	response_ends_trial: false,
-	timing_response: 6000
+	timing_response: 5000
 };
 
 var payoutTrial = {
@@ -608,7 +608,7 @@ columbia_card_task_cold_experiment.push(end_instructions);
 for (b = 0; b < numRounds; b++) {
 	columbia_card_task_cold_experiment.push(test_block);
 
-	// 6s fixation only between rounds, not after the last round
+	// 5s fixation only between rounds, not after the last round
 	if (b < numRounds - 1) {
 		columbia_card_task_cold_experiment.push(round_delay);
 	}
