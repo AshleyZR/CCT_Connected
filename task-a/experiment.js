@@ -60,24 +60,84 @@ function appendTextAfter2(input, search_term, new_text, deleted_text) {
 	return input.slice(0, index) + new_text + input.slice(indexAfter)
 }
 
-var getBoard = function(board_type) {
-	var board = ''
-	if (board_type == 2) {
-		board = "<div class = cardbox>"
-		for (i = 1; i < 33; i++) {
-			board += "<div class = square><input type='image' id = " + i +
-				" class = 'card_image' src='images/beforeChosen.png' onclick = instructCard(this.id)></div>"
-		}
+/* ---------------------------------------------------------------- */
+/* Shared responsive screen builder.                                  */
+/* Every section is a block in normal flow, stacked by .game-layout,  */
+/* so each one pushes the next down instead of overlaying it.         */
+/* ---------------------------------------------------------------- */
+var statusBox = function(id, label, value, highlight) {
+	var body = (value === undefined || value === null || value === '')
+		? label
+		: label + ' <strong class = "status-value' + (highlight ? ' status-highlight' : '') + '">' + value + '</strong>'
+	return '<div class = status-box><span id = "' + id + '">' + body + '</span></div>'
+}
 
-	} else {
-		board = "<div class = cardbox>"
-		for (i = 1; i < 33; i++) {
-			board += "<div class = square><input type='image' id = " + i +
-				" class = 'card_image select-button' src='images/beforeChosen.png' onclick = chooseCard(this.id)></div>"
+// Single place that renders the running total, so every updater writes the same markup.
+var pointsMarkup = function(n) {
+	return 'Current Round Points: <strong class = status-value>' + n + '</strong>'
+}
+
+var setPoints = function(n) {
+	var el = document.getElementById('current_round')
+	if (el) el.innerHTML = pointsMarkup(n)
+}
+
+var hotStatus = function(round, lossAmount, gainAmount, lossCards, points) {
+	return statusBox('game_round', 'Game Round:', round) +
+		statusBox('loss_amount', 'Loss Amount:', lossAmount, true) +
+		statusBox('gain_amount', 'Gain Amount:', gainAmount, true) +
+		statusBox('num_loss_cards', 'Number of Loss Cards:', lossCards, true) +
+		statusBox('current_round', 'Current Round Points:', points)
+}
+
+var gameScreen = function(parts) {
+	var html = '<div class = game-layout>'
+	if (parts.heading) {
+		html += '<h1 class = gl-heading>' + parts.heading + '</h1>'
+	}
+	if (parts.status) {
+		html += '<div class = gl-status>' + parts.status + '</div>'
+	}
+	if (parts.lead !== undefined) {
+		html += '<div class = gl-lead id = tutorial_text>' + parts.lead + '</div>'
+	}
+	if (parts.prompt !== undefined) {
+		html += '<p class = gl-prompt id = round_prompt>' + parts.prompt + '</p>'
+	}
+	if (parts.subprompt !== undefined) {
+		html += '<p class = gl-subprompt id = sub_prompt>' + parts.subprompt + '</p>'
+	}
+	// Feedback row: collapses to nothing while empty, pushes content down when filled.
+	html += '<p class = gl-message id = card_click_msg></p>'
+	if (parts.actions) {
+		html += '<div class = gl-actions>' + parts.actions + '</div>'
+	}
+	if (parts.numbers) {
+		html += '<div class = gl-numbers>' + parts.numbers + '</div>'
+	}
+	if (parts.cards) {
+		html += '<div class = gl-cards>' + parts.cards + '</div>'
+	}
+	if (parts.footer) {
+		html += '<div class = gl-footer>' + parts.footer + '</div>'
+	}
+	html += '</div>'
+	return html
+}
+
+var getBoard = function(board_type) {
+	// Returns card elements only; the caller wraps them in the .gl-cards grid.
+	var cards = ''
+	for (i = 1; i < 33; i++) {
+		if (board_type == 2) {
+			cards += "<input type='image' id = '" + i +
+				"' class = 'card_image' src='images/beforeChosen.png' onclick = instructCard(this.id)>"
+		} else {
+			cards += "<input type='image' id = '" + i +
+				"' class = 'card_image select-button' src='images/beforeChosen.png' onclick = chooseCard(this.id)>"
 		}
 	}
-	board += "</div>"
-	return board
+	return cards
 }
 
 
@@ -171,15 +231,14 @@ var getRound = function() {
       }
     }
 
-    return "<div class = square><input type='image' id = '" + i + "' class = '" + cls + "' src='" + src + "'" + click + "></div>";
+    return "<input type='image' id = '" + i + "' class = '" + cls + "' src='" + src + "'" + click + ">";
   }
 
   function buildBoard(state) {
-    var html = "<div class = cardbox>";
+    var html = "";
     for (var i = 1; i <= 32; i++) {
       html += renderCard(i, state);
     }
-    html += "</div>";
     return html;
   }
 
@@ -210,24 +269,15 @@ var getRound = function() {
       collectClick = " onclick = collect()";
     }
 
-    return (
-      "<div class = cct-box>" +
-        "<div class = titleBigBox>" +
-          "<div class = titleboxLeft><div class = center-text id = game_round>Game Round: " + whichRound + "</div></div>" +
-          "<div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: <strong style=\"color:red\">" + lossAmt + "</strong></div></div>" +
-          "<div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: <strong style=\"color:red\">" + gainAmt + "</strong></div></div>" +
-          "<div class = titlebox><div class = center-text id = round_prompt>" + promptText + "</div></div>" +
-          "<div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: <strong style=\"color:red\">" + numLossCards + "</strong></div></div>" +
-          "<div class = titleboxRight><div class = center-text id = current_round>Current Round Points: " + roundPoints + "</div></div>" +
-          "<div class = buttonbox>" +
-            "<button type='button' id='NoCardButton' class='CCT-btn" + (state === 0 ? " select-button" : "") + "'" + noCardClick + noCardDisabled + ">TAKE NO CARD</button>" +
-            "<button type='button' id='turnButton' class='CCT-btn" + (state === 1 ? " select-button" : "") + "'" + stopClick + stopDisabled + ">STOP</button>" +
-            "<button type='button' id='collectButton' class='" + collectClass + "'" + collectClick + collectDisabled + ">NEXT ROUND</button>" +
-          "</div>" +
-        "</div>" +
-        buildBoard(state) +
-      "</div>"
-    );
+    return gameScreen({
+      status: hotStatus(whichRound, lossAmt, gainAmt, numLossCards, roundPoints),
+      prompt: promptText,
+      actions:
+        "<button type='button' id='NoCardButton' class='CCT-btn" + (state === 0 ? " select-button" : "") + "'" + noCardClick + noCardDisabled + ">TAKE NO CARD</button>" +
+        "<button type='button' id='turnButton' class='CCT-btn" + (state === 1 ? " select-button" : "") + "'" + stopClick + stopDisabled + ">STOP</button>" +
+        "<button type='button' id='collectButton' class='" + collectClass + "'" + collectClick + collectDisabled + ">NEXT ROUND</button>",
+      cards: buildBoard(state)
+    });
   }
 
   if (roundOver === 0) {
@@ -326,7 +376,7 @@ var turnOneCard = function(whichCard, win) {
 function doSetTimeout(card_i, delay, points, win) {
 	CCT_timeouts.push(setTimeout(function() {
 		turnOneCard(card_i, win);
-		document.getElementById("current_round").innerHTML = 'Current Round Points: ' + points
+		setPoints(points)
 	}, delay));
 }
 
@@ -381,7 +431,7 @@ var instructCard = function(clicked_id) {
 	appendTextAfter(gameState, 'turnButton', ' onclick = turnCards()')
 	if (whichLossCards.indexOf(currID) == -1) {
 		instructPoints = instructPoints + gainAmt
-		document.getElementById('current_round').innerHTML = 'Current Round Points: ' + instructPoints;
+		setPoints(instructPoints)
 		document.getElementById(clicked_id).disabled = true;
 
 		document.getElementById(clicked_id).src =
@@ -390,7 +440,7 @@ var instructCard = function(clicked_id) {
 	} else if (whichLossCards.indexOf(currID) != -1) {
 		instructPoints = instructPoints - lossAmt
 		document.getElementById(clicked_id).disabled = true;
-		document.getElementById('current_round').innerHTML = 'Current Round Points: ' + instructPoints;
+		setPoints(instructPoints)
 		document.getElementById(clicked_id).src =
 			'images/loss.png';
 		 $("input.card_image").attr("disabled", true);
@@ -547,26 +597,22 @@ var shuffledParamsArray = jsPsych.randomization.shuffle(
 // }
 
 
-var practiceHeader = function(roundNo, lossAmount, gainAmount, lossCards) {
-	return "<div class = practiceText><div class = block-text2>Practice Round " + roundNo + " of 2</div></div>" +
-		"<div class = cct-box2>" +
-		"<div class = titleBigBox>" +
-		"   <div class = titleboxLeft><div class = center-text id = game_round>Game Round: " + roundNo + "</div></div>" +
-		"   <div class = titleboxLeft1><div class = center-text id = loss_amount>Loss Amount: <strong style=\"color:red\">" + lossAmount + "</strong></div></div>" +
-		"    <div class = titleboxMiddle1><div class = center-text id = gain_amount>Gain Amount: <strong style=\"color:red\">" + gainAmount + "</strong></div></div>" +
-		"    <div class = titlebox><div class = center-text id = round_prompt>" + PROMPT_INITIAL + "</div></div>" +
-		"     <div class = titleboxRight1><div class = center-text id = num_loss_cards>Number of Loss Cards: <strong style=\"color:red\">" + lossCards + "</strong></div></div>" +
-		"   <div class = titleboxRight><div class = center-text id = current_round>Current Round Points: 0</div></div>" +
-		"<div class = buttonbox>" +
-		"<button type='button' class = CCT-btn id = NoCardButton onclick = turnCards()>TAKE NO CARD</button>" +
-		"<button type='button' class = CCT-btn id = turnButton onclick = turnCards() disabled>STOP</button>" +
-		"<button type='button' class = 'CCT-btn select-button' id = collectButton onclick = collect() disabled>NEXT ROUND</button>" +
-		"</div></div>"
+var practiceScreen = function(roundNo, lossAmount, gainAmount, lossCards) {
+	return gameScreen({
+		heading: 'Practice Round ' + roundNo + ' of 2',
+		status: hotStatus(roundNo, lossAmount, gainAmount, lossCards, 0),
+		prompt: PROMPT_INITIAL,
+		actions:
+			"<button type='button' class = CCT-btn id = NoCardButton onclick = turnCards()>TAKE NO CARD</button>" +
+			"<button type='button' class = CCT-btn id = turnButton onclick = turnCards() disabled>STOP</button>" +
+			"<button type='button' class = 'CCT-btn select-button' id = collectButton onclick = collect() disabled>NEXT ROUND</button>",
+		cards: getBoard(2)
+	})
 }
 
-var practiceSetup = practiceHeader(1, 250, 30, 1) + getBoard(2)
+var practiceSetup = practiceScreen(1, 250, 30, 1)
 
-var practiceSetup2 = practiceHeader(2, 750, 10, 3) + getBoard(2)
+var practiceSetup2 = practiceScreen(2, 750, 10, 3)
 
 /* ---------------------------------------------------------------- */
 /* Hot tutorial ("Try It") - one gain card, then STOP                */
@@ -583,7 +629,7 @@ var tutorialCard = function(clicked_id) {
 	// Lock every card: turning more of them over would show a board of nothing but
 	// gain cards, which misrepresents the game.
 	$('input.tutorial-card').attr('disabled', true)
-	document.getElementById('current_round').innerHTML = 'Current Round Points: ' + tutorialPoints
+	setPoints(tutorialPoints)
 	// Cards are no longer clickable here, so the prompt points only at STOP.
 	setPrompt('Click STOP to end the round.')
 	document.getElementById('tutorial_text').innerHTML =
@@ -604,34 +650,24 @@ var tutorialStop = function() {
 
 var getHotTutorial = function() {
 	tutorialPoints = 0
-	var board = "<div class = cardbox>"
+	var cards = ''
 	for (var i = 1; i <= 32; i++) {
-		board += "<div class = square><input type='image' id = 't" + i +
-			"' class = 'card_image tutorial-card' src='images/beforeChosen.png' onclick = tutorialCard(this.id)></div>"
+		cards += "<input type='image' id = 't" + i +
+			"' class = 'card_image tutorial-card' src='images/beforeChosen.png' onclick = tutorialCard(this.id)>"
 	}
-	board += "</div>"
 
-	return "<div class = practiceText>" +
-		"<div class = block-text2 id = tutorial_heading>Try It</div>" +
-		"<div class = block-text2 id = tutorial_text>Below are cards like the ones you will see during the game.<br>Click any face-down card.</div>" +
-		"</div>" +
-		"<div class = cct-box2>" +
-		"<div class = titleBigBox>" +
-		"   <div class = titleboxLeft><div class = center-text>Game Round: 1</div></div>" +
-		"   <div class = titleboxLeft1><div class = center-text>Loss Amount: <strong style=\"color:red\">250</strong></div></div>" +
-		"    <div class = titleboxMiddle1><div class = center-text>Gain Amount: <strong style=\"color:red\">" + TUTORIAL_GAIN + "</strong></div></div>" +
-		"    <div class = titlebox><div class = center-text id = round_prompt>" + PROMPT_INITIAL + "</div></div>" +
-		"     <div class = titleboxRight1><div class = center-text>Number of Loss Cards: <strong style=\"color:red\">1</strong></div></div>" +
-		"   <div class = titleboxRight><div class = center-text id = current_round>Current Round Points: 0</div></div>" +
-		"<div class = buttonbox>" +
-		"<button type='button' class = CCT-btn id = NoCardButton disabled>TAKE NO CARD</button>" +
-		"<button type='button' class = CCT-btn id = turnButton onclick = tutorialStop() disabled>STOP</button>" +
-		"<button type='button' class = CCT-btn id = collectButton disabled>NEXT ROUND</button>" +
-		"</div></div>" +
-		board +
-		"<div class = tutorial-continue-box>" +
-		"<button type='button' id = tutorialContinue class = 'CCT-btn select-button' disabled>CONTINUE</button>" +
-		"</div></div>"
+	return gameScreen({
+		heading: '<span id = tutorial_heading>Try It</span>',
+		status: hotStatus(1, 250, TUTORIAL_GAIN, 1, 0),
+		lead: 'Below are cards like the ones you will see during the game.<br>Click any face-down card.',
+		prompt: PROMPT_INITIAL,
+		actions:
+			"<button type='button' class = CCT-btn id = NoCardButton disabled>TAKE NO CARD</button>" +
+			"<button type='button' class = CCT-btn id = turnButton onclick = tutorialStop() disabled>STOP</button>" +
+			"<button type='button' class = CCT-btn id = collectButton disabled>NEXT ROUND</button>",
+		cards: cards,
+		footer: "<button type='button' id = tutorialContinue class = 'CCT-btn select-button' disabled>CONTINUE</button>"
+	})
 }
 
 
@@ -653,22 +689,7 @@ var post_task_block = {
 
 var round_delay = {
   type: 'single-stim-button',
-  stimulus: `
-  <div style="
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 800px;
-    height: 500px;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  ">
-    <div style="font-size: 48px; color: black;">+</div>
-  </div>
-`,
+  stimulus: '<div class = fixation-block>+</div>',
   is_html: true,
   choices: [''],
   button_html: '<button style="display:none;"></button>',
