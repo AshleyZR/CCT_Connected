@@ -268,8 +268,10 @@ var coldRoundScreen = function(round, lossAmount, gainAmount, lossCards, opts) {
 		// No running total in this task, so the points cell is omitted.
 		settings: roundSettings(opts.roundLabel || round, gainAmount, lossAmount, lossCards, null),
 		lead: opts.lead,
-		prompt: PROMPT_CHOOSE,
-		subprompt: SUBPROMPT_CHOOSE,
+		// The tutorial carries its own instruction in `lead`, so the generic
+		// round prompt and sub-prompt are omitted there.
+		prompt: opts.tutorial ? undefined : PROMPT_CHOOSE,
+		subprompt: opts.tutorial ? undefined : SUBPROMPT_CHOOSE,
 		actions: nextRoundButton(!opts.tutorial),
 		numbers: getButtons(opts.tutorial ? 'tutorialChoose' : 'chooseButton'),
 		cards: getBoard()
@@ -289,8 +291,6 @@ var tutorialChoose = function(clicked_id) {
 	$('.chooseButton').prop('disabled', true)
 	$('#' + clicked_id).addClass('selected-number')
 	document.getElementById('card_click_msg').innerHTML = ''
-	setPrompt('You selected 7 cards. Click NEXT ROUND to continue.')
-	setSubPrompt('')
 	document.getElementById('tutorial_text').innerHTML =
 		'You selected 7 cards.<br>The cards remain face-down. Click <strong>NEXT ROUND</strong> to continue.'
 	$('#nextButton').prop('disabled', false)
