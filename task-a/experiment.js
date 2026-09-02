@@ -807,7 +807,11 @@ var PAGE_TRANSITION = instrPage('Second Card Game',
 /* ---------------------------------------------------------------- */
 /* Hot page H1 - How to Play                                         */
 /* ---------------------------------------------------------------- */
-var PAGE_H1 = instrPage('How to Play',
+// Numbered by the order this participant plays the games, not by which
+// task it is: whichever game comes first is Game 1.
+var GAME_NUMBER = IS_FIRST_TASK ? 1 : 2
+
+var PAGE_H1 = instrPage('How to Play Game ' + GAME_NUMBER,
 	'<p>Click a face-down card to turn it over.</p>' +
 	'<p>If the card is a gain card, it will be revealed and its points will be added to ' +
 	'your score.</p>' +
