@@ -1,11 +1,16 @@
 /* =================================================================
    Shared responsive layout system.
 
-   Every screen (tutorial, practice, real round, instructions) is built
-   from the same sections stacked in normal document flow by
-   .game-layout. There is no absolute positioning, no fixed height and
-   no transform-based placement in page content, so each section
-   occupies its own row and pushes the next one down.
+   Height model: the panel is at least one viewport tall, .game-layout
+   claims that height as a flex column, and the card grid claims the
+   remaining space inside it. Cards therefore size to the space that is
+   left over rather than forcing the page to grow. Text-only screens
+   (instructions, fixation, wait) centre in the same panel and are
+   allowed to scroll if their content genuinely cannot fit.
+
+   Every section is a block in normal document flow. No absolute
+   positioning, transforms, negative margins or fixed heights are used
+   for page content.
    ================================================================= */
 
 *,
@@ -14,16 +19,25 @@
   box-sizing: border-box;
 }
 
-/* Panel geometry lives here so anything sized against it (e.g. the
-   fixation screen) stays correct at every breakpoint. */
+/* ---------- shared spacing tokens ----------
+   All viewport-height aware, so chrome shrinks on short screens and
+   the card grid keeps its space. Pages use these instead of their own
+   pixel values. */
 :root {
-  --panel-gap: 24px;
-  --panel-pad: 32px;
+  --panel-gap: clamp(6px, 1.2vh, 16px);   /* space around the panel   */
+  --panel-pad: clamp(10px, 1.8vh, 24px);  /* panel inner padding      */
+  --section-gap: clamp(6px, 1.1vh, 14px); /* between layout regions   */
+  --card-gap-row: clamp(6px, 1.1vh, 16px);
+  --card-gap-col: clamp(8px, 1vw, 22px);
+  --btn-gap: clamp(6px, 0.9vw, 14px);
+  --num-gap: clamp(3px, 0.35vw, 6px);
+  --text-gap: clamp(4px, 0.7vh, 10px);
+
+  /* 103 x 141 is the intrinsic size of the card art. */
+  --card-ratio: 103 / 141;
 }
 
 html {
-  /* The inherited 26px base is too large to lay out against; sections
-     below set their own sizes. */
   font-size: 18px;
 }
 
@@ -31,7 +45,6 @@ body {
   margin: 0;
   padding: 0;
   background-color: #707070;
-  overflow-y: auto;
 }
 
 /* Decorative full-bleed backdrop only - carries no content, so keeping
@@ -52,14 +65,16 @@ body {
   margin: 0;
 }
 
-/* The white panel. Grows with its content; the page scrolls. */
+/* The white panel: one viewport tall, growing only if content truly
+   needs it. */
 .display_stage {
   position: relative;
   left: auto;
   top: auto;
-  width: min(calc(100% - 32px), 1200px);
+  width: min(calc(100% - 2 * var(--panel-gap)), 1200px);
   height: auto;
   min-height: calc(100vh - 2 * var(--panel-gap));
+  min-height: calc(100dvh - 2 * var(--panel-gap));
   margin: var(--panel-gap) auto;
   padding: var(--panel-pad);
   background-color: white;
@@ -67,41 +82,73 @@ body {
   border-radius: 15px;
   overflow: visible;
   box-sizing: border-box;
-}
 
-/* ---------- vertical section stack ---------- */
-.game-layout {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  align-items: stretch;
+  min-width: 0;
+}
+
+/* jsPsych's single-stim-button plugin wraps every stimulus in this div.
+   It has to behave as a transparent flex passthrough or children that
+   claim remaining height (the fixation) collapse to their content. */
+#jspsych-single-button-stimulus {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+}
+
+/* ---------- the shared game layout ----------
+   Claims the panel's full content height; the card grid takes what is
+   left after the fixed-height regions above it. */
+.game-layout {
+  /* A definite height is what lets the card grid shrink into the space
+     that is left. Derived from the same tokens as the panel, so there is
+     still one source of truth for the geometry. */
+  height: calc(100vh - 2 * var(--panel-gap) - 2 * var(--panel-pad));
+  height: calc(100dvh - 2 * var(--panel-gap) - 2 * var(--panel-pad));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+  width: 100%;
+}
+
+/* Every region except the main content keeps its natural height. */
+.game-layout > * {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .gl-heading {
   margin: 0;
   text-align: center;
-  font-size: 1.5rem;
+  font-size: clamp(20px, 2.6vh, 30px);
   font-weight: bold;
-  line-height: 1.3;
+  line-height: 1.2;
 }
 
-/* ---------- status information ---------- */
+/* ---------- status information ----------
+   Flex wrap rather than a fixed grid: one row when it fits, otherwise
+   it wraps compactly with no empty cells. */
 .gl-status {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--text-gap) var(--btn-gap);
+  justify-content: center;
   width: 100%;
 }
 
 .status-box {
+  flex: 1 1 auto;
+  min-width: 0;
   border: 1px solid #333;
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: clamp(3px, 0.6vh, 8px) 10px;
   text-align: center;
-  font-size: 0.95rem;
-  line-height: 1.35;
-  min-width: 0;
+  font-size: clamp(16px, 1.5vh, 19px);
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
@@ -109,43 +156,44 @@ body {
   color: #c00;
 }
 
-/* ---------- instruction / prompt / feedback rows ---------- */
+/* ---------- instruction / prompt / feedback ---------- */
 .gl-lead {
   margin: 0;
   text-align: center;
-  font-size: 1.15rem;
+  font-size: clamp(18px, 2vh, 23px);
   font-weight: bold;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .gl-prompt {
   margin: 0;
   text-align: center;
-  font-size: 1.1rem;
+  font-size: clamp(18px, 1.95vh, 22px);
   font-weight: bold;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
+/* Cleared once a choice is made; the line is held so the board does not
+   resize underneath the participant. */
 .gl-subprompt {
   margin: 0;
+  min-height: 1.3em;
   text-align: center;
-  font-size: 0.95rem;
-  line-height: 1.4;
+  font-size: clamp(16px, 1.6vh, 19px);
+  line-height: 1.3;
 }
 
+/* Single shared message region. Its contents are swapped as state
+   changes; one line is reserved so revealing a message never shifts the
+   controls or resizes the board. */
 .gl-message {
   margin: 0;
+  min-height: 1.35em;
   text-align: center;
-  font-size: 1rem;
+  font-size: clamp(16px, 1.7vh, 19px);
   font-weight: bold;
   color: #b91c1c;
-  line-height: 1.4;
-}
-
-/* Collapses entirely while empty so it reserves no space, and pushes
-   the following sections down when it is filled. */
-.gl-message:empty {
-  display: none;
+  line-height: 1.3;
 }
 
 /* ---------- action buttons ---------- */
@@ -153,37 +201,54 @@ body {
 .gl-footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--btn-gap);
   justify-content: center;
   align-items: center;
 }
 
-/* ---------- 0-32 number selector: wraps onto as many rows as needed ---------- */
+/* ---------- 0-32 number selector ---------- */
 .gl-numbers {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--num-gap);
   justify-content: center;
 }
 
-/* ---------- card grid ---------- */
-/* 32 cards per round, so the column count is a divisor of 32: every row
-   is full and equal (8 x 4 here, 4 x 8 on small screens). */
+/* ---------- card grid ----------
+   Takes the height left over inside .game-layout. 32 cards, so the
+   column count divides 32 exactly and every row is full. */
 .gl-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: var(--card-gap-row) var(--card-gap-col);
   width: 100%;
-  max-width: 880px;
+  max-width: 980px;
   margin: 0 auto;
   justify-items: center;
+  align-items: center;
 }
 
+/* Cards shrink to fit the cell in whichever axis binds first, keeping
+   the art's natural 103:141 ratio exactly. auto width/height plus both
+   max-* clamps is the one combination that never distorts the box:
+   forcing height:100% would let max-width clamp the width and skew it.
+   They are not scaled beyond their intrinsic size, which would only
+   blur the art. */
 .gl-cards .card_image {
   display: block;
-  width: 100%;
-  max-width: 96px;
+  aspect-ratio: var(--card-ratio);
+  width: auto;
   height: auto;
+  /* The three card PNGs are 103x141, 104x142 and 103x142. Clamping to the
+     common minimum keeps a revealed card exactly the same size as a
+     face-down one, so rows stay aligned, and stops any upscaling. */
+  max-width: min(100%, 103px);
+  max-height: min(100%, 141px);
+  object-fit: contain;
   padding: 0;
   border: none;
   background: none;
@@ -191,14 +256,14 @@ body {
 
 /* ---------- buttons ---------- */
 .CCT-btn {
-  font-size: 1rem;
+  font-size: clamp(16px, 1.6vh, 19px);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  padding: 10px 18px;
+  padding: clamp(6px, 1vh, 11px) clamp(12px, 1.4vw, 20px);
   margin: 0;
   color: white;
   background-color: cornflowerblue;
   cursor: pointer;
-  line-height: 1.3;
+  line-height: 1.25;
   text-align: center;
   vertical-align: middle;
   background-image: none;
@@ -222,9 +287,9 @@ body {
 }
 
 .chooseButton {
-  min-width: 40px;
-  padding: 8px 6px;
-  font-size: 0.9rem;
+  min-width: clamp(30px, 2.5vw, 44px);
+  padding: clamp(4px, 0.7vh, 9px) 4px;
+  font-size: clamp(16px, 1.5vh, 18px);
 }
 
 /* ---------- visible keyboard focus everywhere ---------- */
@@ -237,15 +302,14 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
-/* ---------- fixation ---------- */
-/* Fills the panel's content box, so the cross sits in the middle of the
-   screen rather than near the top. */
+/* ---------- fixation: fills the panel, so the cross is centred ---------- */
 .fixation-block {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 2 * var(--panel-gap) - 2 * var(--panel-pad));
-  font-size: 3rem;
+  font-size: clamp(36px, 6vh, 64px);
   color: black;
 }
 
@@ -254,90 +318,98 @@ textarea:focus-visible,
   position: static;
   width: 100%;
   height: auto;
-  margin: 0 auto;
+  margin-block: auto;
   transform: none;
-  padding: 8vh 0;
+  padding: 0;
 }
 
 .center-block-text {
   width: 100%;
   text-align: center;
-  margin: 0 auto 1em auto;
-  font-size: 1.6rem;
-  line-height: 1.35;
+  margin: 0 auto 0.6em auto;
+  font-size: clamp(20px, 2.6vh, 30px);
+  line-height: 1.3;
 }
 
 .block-text {
   width: 100%;
   text-align: left;
-  margin: 0 auto 1em auto;
-  font-size: 1.1rem;
+  margin: 0 auto 0.7em auto;
+  font-size: clamp(16px, 1.8vh, 20px);
   line-height: 1.4;
 }
 
 /* ---------- instruction pages ---------- */
 .instr-page {
   width: 100%;
-  max-width: 780px;
-  margin: 0 auto;
+  max-width: 800px;
+  margin-inline: auto;
+  margin-block: auto;   /* vertically centred in the panel */
   padding: 0;
   text-align: left;
-  font-size: 1.05rem;
-  line-height: 1.5;
+  font-size: clamp(16px, 1.95vh, 20px);
+  line-height: 1.42;
 }
 
 .instr-heading {
-  font-size: 1.5rem;
+  font-size: clamp(20px, 2.6vh, 30px);
   font-weight: bold;
   text-align: center;
-  margin-bottom: 1em;
-  line-height: 1.3;
+  margin-bottom: clamp(8px, 1.4vh, 18px);
+  line-height: 1.2;
 }
 
-.instr-body p { margin: 0 0 0.7em 0; }
-.instr-body ul { margin: 0 0 0.7em 1.3em; padding: 0; }
-.instr-body li { margin-bottom: 0.25em; }
+.instr-body p { margin: 0 0 var(--text-gap) 0; }
+.instr-body ul { margin: 0 0 var(--text-gap) 1.3em; padding: 0; }
+.instr-body li { margin-bottom: calc(var(--text-gap) / 2); }
 
-.card-legend { margin: 0.5em 0 0.8em 0; }
+.card-legend {
+  margin: var(--text-gap) 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--text-gap) clamp(16px, 2vw, 36px);
+}
 
 .card-legend-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 0.6em;
+  gap: 12px;
+  flex: 1 1 260px;
 }
 
 .legend-card {
-  width: 64px;
+  width: clamp(40px, 5.5vh, 62px);
   height: auto;
+  aspect-ratio: var(--card-ratio);
+  object-fit: contain;
   flex: 0 0 auto;
 }
 
 .example-box {
   border-left: 4px solid cornflowerblue;
-  padding: 0.3em 0 0.3em 1em;
-  margin: 0 0 0.8em 0;
+  padding: 0.2em 0 0.2em 0.9em;
+  margin: 0 0 var(--text-gap) 0;
 }
 
-.example-box p { margin: 0 0 0.2em 0; }
+.example-box p { margin: 0 0 0.15em 0; }
 .example-math { font-weight: bold; }
 
 .jspsych-instructions-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--btn-gap);
   justify-content: center;
-  margin-top: 1.5em;
+  margin-top: clamp(10px, 1.8vh, 24px);
   position: static;
 }
 
 .jspsych-instructions-nav button,
 #jspsych-instructions-next,
 #jspsych-instructions-back {
-  font-size: 1rem;
+  font-size: clamp(16px, 1.7vh, 19px);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  padding: 12px 28px;
-  min-width: 150px;
+  padding: clamp(8px, 1.2vh, 13px) clamp(18px, 2vw, 30px);
+  min-width: 140px;
   margin: 0;
   color: white;
   background-color: cornflowerblue;
@@ -353,30 +425,29 @@ textarea:focus-visible,
   background-color: darkblue;
 }
 
-/* ---------- responsive steps ---------- */
-@media (max-width: 1024px) {
-  .gl-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gl-cards { gap: 18px; max-width: 700px; }
-}
-
-@media (max-width: 600px) {
-  :root {
-    --panel-gap: 8px;
-    --panel-pad: 16px;
-  }
-  html { font-size: 16px; }
+/* ---------- narrow screens ----------
+   Below this width the board cannot stay 8-wide and stay legible, so it
+   becomes 4 x 8 and the page is allowed to scroll. */
+@media (max-width: 700px) {
   .display_stage {
-    width: calc(100% - 16px);
+    height: auto;
+    min-height: calc(100vh - 2 * var(--panel-gap));
+    min-height: calc(100dvh - 2 * var(--panel-gap));
   }
-  .game-layout { gap: 14px; }
-  .gl-status { grid-template-columns: 1fr; gap: 8px; }
+  .gl-status { display: grid; grid-template-columns: 1fr; }
+  .game-layout { height: auto; }
   .gl-cards {
+    flex: 0 0 auto;
+    height: auto;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-rows: none;
   }
-  .gl-cards .card_image { max-width: 72px; }
+  .gl-cards .card_image {
+    height: auto;
+    width: 100%;
+    max-width: 84px;
+  }
   .gl-actions .CCT-btn { flex: 1 1 100%; }
-  .chooseButton { min-width: 34px; padding: 7px 4px; font-size: 0.85rem; }
   #jspsych-instructions-next,
   #jspsych-instructions-back { min-width: 120px; flex: 1 1 40%; }
 }
