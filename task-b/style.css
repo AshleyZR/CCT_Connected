@@ -33,8 +33,11 @@
   --num-gap: clamp(3px, 0.35vw, 6px);
   --text-gap: clamp(4px, 0.7vh, 10px);
 
-  /* 103 x 141 is the intrinsic size of the card art. */
+  /* The card art is 103 x 141. Cards render at 80% of that, so the token
+     is the single place the board's card size is set. */
   --card-ratio: 103 / 141;
+  --card-max-w: 82.4px;
+  --card-max-h: 112.8px;
 }
 
 html {
@@ -218,16 +221,18 @@ body {
    Takes the height left over inside .game-layout. 32 cards, so the
    column count divides 32 exactly and every row is full. */
 .gl-cards {
-  flex: 1 1 auto;
+  /* Does not grow: the board is at most as tall as four rows of cards, so
+     spare height becomes margin around the grid rather than wider gaps.
+     It can still shrink (min-height:0 + 1fr rows) when space is tight. */
+  flex: 0 1 auto;
   min-height: 0;
-  height: 100%;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   grid-template-rows: repeat(4, minmax(0, 1fr));
   gap: var(--card-gap-row) var(--card-gap-col);
   width: 100%;
-  max-width: 980px;
-  margin: 0 auto;
+  max-width: calc(8 * var(--card-max-w) + 7 * 22px);
+  margin: auto;
   justify-items: center;
   align-items: center;
 }
@@ -245,9 +250,10 @@ body {
   height: auto;
   /* The three card PNGs are 103x141, 104x142 and 103x142. Clamping to the
      common minimum keeps a revealed card exactly the same size as a
-     face-down one, so rows stay aligned, and stops any upscaling. */
-  max-width: min(100%, 103px);
-  max-height: min(100%, 141px);
+     face-down one, so rows stay aligned, and stops any upscaling. The
+     cap is 80% of the art's intrinsic size. */
+  max-width: min(100%, var(--card-max-w));
+  max-height: min(100%, var(--card-max-h));
   object-fit: contain;
   padding: 0;
   border: none;
