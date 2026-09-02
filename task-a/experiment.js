@@ -636,8 +636,6 @@ var tutorialCard = function(clicked_id) {
 	// gain cards, which misrepresents the game.
 	$('input.tutorial-card').attr('disabled', true)
 	setPoints(tutorialPoints)
-	// Cards are no longer clickable here, so the prompt points only at STOP.
-	setPrompt('Click STOP to end the round.')
 	document.getElementById('tutorial_text').innerHTML =
 		'This is a gain card. Its points have been added to your score.<br>' +
 		'During the game, you may click another card or click <strong>STOP</strong>.<br>' +
@@ -648,8 +646,6 @@ var tutorialCard = function(clicked_id) {
 var tutorialStop = function() {
 	$('#turnButton').prop('disabled', true)
 	$('input.tutorial-card').attr('disabled', true)
-	// The tutorial advances via CONTINUE, not NEXT ROUND, so point the prompt at it.
-	setPrompt('Click CONTINUE to go on.')
 	document.getElementById('tutorial_text').innerHTML = 'Correct. You may stop after any gain card.'
 	$('#tutorialContinue').prop('disabled', false)
 }
@@ -666,7 +662,6 @@ var getHotTutorial = function() {
 		heading: '<span id = tutorial_heading>Try It</span>',
 		settings: roundSettings(1, TUTORIAL_GAIN, 250, 1, 0),
 		lead: 'Below are cards like the ones you will see during the game.<br>Click any face-down card.',
-		prompt: PROMPT_INITIAL,
 		actions:
 			"<button type='button' class = CCT-btn id = NoCardButton disabled>TAKE NO CARD</button>" +
 			"<button type='button' class = CCT-btn id = turnButton onclick = tutorialStop() disabled>STOP</button>" +
