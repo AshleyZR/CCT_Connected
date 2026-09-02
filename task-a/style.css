@@ -116,6 +116,10 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Centre the whole stack so leftover height is split above the heading
+     and below the board, instead of all collecting under the cards. The
+     gaps between sections are untouched. */
+  justify-content: center;
   gap: var(--section-gap);
   width: 100%;
 }
