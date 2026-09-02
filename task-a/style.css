@@ -26,7 +26,7 @@
 :root {
   --panel-gap: clamp(6px, 1.2vh, 16px);   /* space around the panel   */
   --panel-pad: clamp(10px, 1.8vh, 24px);  /* panel inner padding      */
-  --section-gap: clamp(6px, 1.1vh, 14px); /* between layout regions   */
+  --section-gap: clamp(10px, 1.4vh, 18px); /* between layout regions  */
   --card-gap-row: clamp(6px, 1.1vh, 16px);
   --card-gap-col: clamp(8px, 1vw, 22px);
   --btn-gap: clamp(6px, 0.9vw, 14px);
@@ -38,6 +38,8 @@
   --card-ratio: 103 / 141;
   --card-max-w: 82.4px;
   --card-max-h: 112.8px;
+  /* Settings panel and card grid share this width so they align. */
+  --board-max-w: calc(8 * var(--card-max-w) + 7 * 22px);
 }
 
 html {
@@ -132,32 +134,77 @@ body {
   line-height: 1.2;
 }
 
-/* ---------- status information ----------
-   Flex wrap rather than a fixed grid: one row when it fits, otherwise
-   it wraps compactly with no empty cells. */
-.gl-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--text-gap) var(--btn-gap);
-  justify-content: center;
+/* ---------- Round Settings panel ----------
+   Small label above a large value. Aligned to the same width as the card
+   grid so header and board read as one block. Flex rather than fixed grid
+   tracks, so the panel is identical whether or not the running-total cell
+   is present. */
+.round-settings {
   width: 100%;
+  max-width: var(--board-max-w);
+  margin-inline: auto;
+  display: flex;
+  gap: clamp(6px, 0.7vw, 12px);
+  align-items: stretch;
 }
 
-.status-box {
-  flex: 1 1 auto;
+.setting {
+  flex: 1 1 0;
   min-width: 0;
-  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
   border-radius: 6px;
-  padding: clamp(3px, 0.6vh, 8px) 10px;
+  padding: clamp(4px, 0.7vh, 9px) clamp(4px, 0.5vw, 10px);
   text-align: center;
-  font-size: clamp(16px, 1.5vh, 19px);
-  line-height: 1.25;
+}
+
+.setting-label {
+  font-size: clamp(10px, 1.05vh, 12px);
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  color: #444;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
-.status-highlight {
-  color: #c00;
+.setting-value {
+  font-weight: bold;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
+
+/* The three fixed round conditions carry the decision-relevant numbers,
+   so they get the larger value and the stronger border. */
+.setting--primary {
+  flex: 1.15 1 0;
+  border: 2px solid #333;
+  background-color: #f4f6fa;
+}
+
+.setting--primary .setting-value {
+  font-size: clamp(19px, 2.5vh, 30px);
+}
+
+/* Round number and the running total are context, not conditions. */
+.setting--secondary {
+  border: 1px solid #999;
+  background-color: transparent;
+}
+
+.setting--secondary .setting-value {
+  font-size: clamp(16px, 1.9vh, 22px);
+}
+
+/* Restrained semantic accents. The +/- signs and the "of 32" wording carry
+   the same meaning, so nothing depends on colour alone. Intensity is fixed
+   and never varies with the magnitude of the value. */
+#gain_amount { color: #15602f; }
+#loss_amount,
+#num_loss_cards { color: #9a2020; }
+#current_round { color: #1f2937; }
 
 /* ---------- instruction / prompt / feedback ---------- */
 .gl-lead {
@@ -186,17 +233,20 @@ body {
   line-height: 1.3;
 }
 
-/* Single shared message region. Its contents are swapped as state
-   changes; one line is reserved so revealing a message never shifts the
-   controls or resizes the board. */
+/* Single shared message region: contents are swapped as state changes.
+   Collapses entirely while empty so it reserves no blank space, and
+   pushes the sections below it down by one line when filled. */
 .gl-message {
   margin: 0;
-  min-height: 1.35em;
   text-align: center;
   font-size: clamp(16px, 1.7vh, 19px);
   font-weight: bold;
   color: #b91c1c;
   line-height: 1.3;
+}
+
+.gl-message:empty {
+  display: none;
 }
 
 /* ---------- action buttons ---------- */
@@ -231,8 +281,14 @@ body {
   grid-template-rows: repeat(4, minmax(0, 1fr));
   gap: var(--card-gap-row) var(--card-gap-col);
   width: 100%;
-  max-width: calc(8 * var(--card-max-w) + 7 * 22px);
-  margin: auto;
+  max-width: var(--board-max-w);
+  /* margin-inline only. A plain `margin: auto` here let the vertical auto
+     margins absorb every bit of remaining height and split it above and
+     below the board - that was the large gap under the buttons. Spare
+     height now falls below the grid instead. */
+  margin-inline: auto;
+  margin-top: clamp(10px, 1vh, 14px);
+  align-self: start;
   justify-items: center;
   align-items: center;
 }
@@ -440,7 +496,8 @@ textarea:focus-visible,
     min-height: calc(100vh - 2 * var(--panel-gap));
     min-height: calc(100dvh - 2 * var(--panel-gap));
   }
-  .gl-status { display: grid; grid-template-columns: 1fr; }
+  .round-settings { flex-wrap: wrap; }
+  .setting { flex: 1 1 45%; }
   .game-layout { height: auto; }
   .gl-cards {
     flex: 0 0 auto;

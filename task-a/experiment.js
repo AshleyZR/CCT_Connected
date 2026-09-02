@@ -65,16 +65,31 @@ function appendTextAfter2(input, search_term, new_text, deleted_text) {
 /* Every section is a block in normal flow, stacked by .game-layout,  */
 /* so each one pushes the next down instead of overlaying it.         */
 /* ---------------------------------------------------------------- */
-var statusBox = function(id, label, value, highlight) {
-	var body = (value === undefined || value === null || value === '')
-		? label
-		: label + ' <strong class = "status-value' + (highlight ? ' status-highlight' : '') + '">' + value + '</strong>'
-	return '<div class = status-box><span id = "' + id + '">' + body + '</span></div>'
+var settingCell = function(id, label, value, primary) {
+	return '<div class = "setting' + (primary ? ' setting--primary' : ' setting--secondary') + '">' +
+		'<div class = setting-label>' + label + '</div>' +
+		'<div class = setting-value id = "' + id + '">' + value + '</div>' +
+		'</div>'
+}
+
+// One Round Settings panel for the tutorial, practice and real rounds.
+// roundLabel carries the round indicator so no second one is shown as a
+// heading. points === null omits the cell (this task shows no running total).
+var roundSettings = function(roundLabel, gainAmount, lossAmount, lossCards, points) {
+	var html = '<div class = round-settings>' +
+		settingCell('game_round', 'ROUND', roundLabel, false) +
+		settingCell('gain_amount', 'PER GAIN CARD', '+' + gainAmount + ' points', true) +
+		settingCell('loss_amount', 'LOSS PENALTY', '\u2212' + lossAmount + ' points', true) +
+		settingCell('num_loss_cards', 'LOSS CARDS', lossCards + ' of 32', true)
+	if (points !== null && points !== undefined) {
+		html += settingCell('current_round', 'CURRENT ROUND POINTS', points, false)
+	}
+	return html + '</div>'
 }
 
 // Single place that renders the running total, so every updater writes the same markup.
 var pointsMarkup = function(n) {
-	return 'Current Round Points: <strong class = status-value>' + n + '</strong>'
+	return String(n)
 }
 
 var setPoints = function(n) {
@@ -82,21 +97,13 @@ var setPoints = function(n) {
 	if (el) el.innerHTML = pointsMarkup(n)
 }
 
-var hotStatus = function(round, lossAmount, gainAmount, lossCards, points) {
-	return statusBox('game_round', 'Game Round:', round) +
-		statusBox('loss_amount', 'Loss Amount:', lossAmount, true) +
-		statusBox('gain_amount', 'Gain Amount:', gainAmount, true) +
-		statusBox('num_loss_cards', 'Number of Loss Cards:', lossCards, true) +
-		statusBox('current_round', 'Current Round Points:', points)
-}
-
 var gameScreen = function(parts) {
 	var html = '<div class = game-layout>'
 	if (parts.heading) {
 		html += '<h1 class = gl-heading>' + parts.heading + '</h1>'
 	}
-	if (parts.status) {
-		html += '<div class = gl-status>' + parts.status + '</div>'
+	if (parts.settings) {
+		html += parts.settings
 	}
 	if (parts.lead !== undefined) {
 		html += '<div class = gl-lead id = tutorial_text>' + parts.lead + '</div>'
@@ -270,7 +277,7 @@ var getRound = function() {
     }
 
     return gameScreen({
-      status: hotStatus(whichRound, lossAmt, gainAmt, numLossCards, roundPoints),
+      settings: roundSettings(whichRound, gainAmt, lossAmt, numLossCards, roundPoints),
       prompt: promptText,
       actions:
         "<button type='button' id='NoCardButton' class='CCT-btn" + (state === 0 ? " select-button" : "") + "'" + noCardClick + noCardDisabled + ">TAKE NO CARD</button>" +
@@ -599,8 +606,7 @@ var shuffledParamsArray = jsPsych.randomization.shuffle(
 
 var practiceScreen = function(roundNo, lossAmount, gainAmount, lossCards) {
 	return gameScreen({
-		heading: 'Practice Round ' + roundNo + ' of 2',
-		status: hotStatus(roundNo, lossAmount, gainAmount, lossCards, 0),
+		settings: roundSettings('Practice ' + roundNo + ' of 2', gainAmount, lossAmount, lossCards, 0),
 		prompt: PROMPT_INITIAL,
 		actions:
 			"<button type='button' class = CCT-btn id = NoCardButton onclick = turnCards()>TAKE NO CARD</button>" +
@@ -658,7 +664,7 @@ var getHotTutorial = function() {
 
 	return gameScreen({
 		heading: '<span id = tutorial_heading>Try It</span>',
-		status: hotStatus(1, 250, TUTORIAL_GAIN, 1, 0),
+		settings: roundSettings(1, TUTORIAL_GAIN, 250, 1, 0),
 		lead: 'Below are cards like the ones you will see during the game.<br>Click any face-down card.',
 		prompt: PROMPT_INITIAL,
 		actions:
