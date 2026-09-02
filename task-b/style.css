@@ -167,9 +167,11 @@ body {
 }
 
 /* ---------- card grid ---------- */
+/* 32 cards per round, so the column count is a divisor of 32: every row
+   is full and equal (8 x 4 here, 4 x 8 on small screens). */
 .gl-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 24px;
   width: 100%;
   max-width: 880px;
@@ -369,7 +371,7 @@ textarea:focus-visible,
   .game-layout { gap: 14px; }
   .gl-status { grid-template-columns: 1fr; gap: 8px; }
   .gl-cards {
-    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
   }
   .gl-cards .card_image { max-width: 72px; }
