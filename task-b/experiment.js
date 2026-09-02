@@ -70,18 +70,26 @@ var appendTestData = function() {
 /* Every section is a block in normal flow, stacked by .game-layout,  */
 /* so each one pushes the next down instead of overlaying it.         */
 /* ---------------------------------------------------------------- */
-var statusBox = function(id, label, value, highlight) {
-	var body = (value === undefined || value === null || value === '')
-		? label
-		: label + ' <strong class = "status-value' + (highlight ? ' status-highlight' : '') + '">' + value + '</strong>'
-	return '<div class = status-box><span id = "' + id + '">' + body + '</span></div>'
+var settingCell = function(id, label, value, primary) {
+	return '<div class = "setting' + (primary ? ' setting--primary' : ' setting--secondary') + '">' +
+		'<div class = setting-label>' + label + '</div>' +
+		'<div class = setting-value id = "' + id + '">' + value + '</div>' +
+		'</div>'
 }
 
-var coldStatus = function(round, lossAmount, gainAmount, lossCards) {
-	return statusBox('game_round', 'Game Round:', round) +
-		statusBox('loss_amount', 'Loss Amount:', lossAmount, true) +
-		statusBox('gain_amount', 'Gain Amount:', gainAmount, true) +
-		statusBox('num_loss_cards', 'Number of Loss Cards:', lossCards, true)
+// One Round Settings panel for the tutorial, practice and real rounds.
+// roundLabel carries the round indicator so no second one is shown as a
+// heading. points === null omits the cell (this task shows no running total).
+var roundSettings = function(roundLabel, gainAmount, lossAmount, lossCards, points) {
+	var html = '<div class = round-settings>' +
+		settingCell('game_round', 'ROUND', roundLabel, false) +
+		settingCell('gain_amount', 'PER GAIN CARD', '+' + gainAmount + ' points', true) +
+		settingCell('loss_amount', 'LOSS PENALTY', '\u2212' + lossAmount + ' points', true) +
+		settingCell('num_loss_cards', 'LOSS CARDS', lossCards + ' of 32', true)
+	if (points !== null && points !== undefined) {
+		html += settingCell('current_round', 'CURRENT ROUND POINTS', points, false)
+	}
+	return html + '</div>'
 }
 
 var gameScreen = function(parts) {
@@ -89,8 +97,8 @@ var gameScreen = function(parts) {
 	if (parts.heading) {
 		html += '<h1 class = gl-heading>' + parts.heading + '</h1>'
 	}
-	if (parts.status) {
-		html += '<div class = gl-status>' + parts.status + '</div>'
+	if (parts.settings) {
+		html += parts.settings
 	}
 	if (parts.lead !== undefined) {
 		html += '<div class = gl-lead id = tutorial_text>' + parts.lead + '</div>'
@@ -257,7 +265,8 @@ var coldRoundScreen = function(round, lossAmount, gainAmount, lossCards, opts) {
 	opts = opts || {}
 	return gameScreen({
 		heading: opts.heading,
-		status: coldStatus(round, lossAmount, gainAmount, lossCards),
+		// No running total in this task, so the points cell is omitted.
+		settings: roundSettings(opts.roundLabel || round, gainAmount, lossAmount, lossCards, null),
 		lead: opts.lead,
 		prompt: PROMPT_CHOOSE,
 		subprompt: SUBPROMPT_CHOOSE,
@@ -295,9 +304,9 @@ var getColdTutorial = function() {
 	})
 }
 
-var practiceSetup1 = coldRoundScreen(1, 250, 30, 1, { heading: 'Practice Round 1 of 2' })
+var practiceSetup1 = coldRoundScreen(1, 250, 30, 1, { roundLabel: 'Practice 1 of 2' })
 
-var practiceSetup2 = coldRoundScreen(2, 750, 10, 3, { heading: 'Practice Round 2 of 2' })
+var practiceSetup2 = coldRoundScreen(2, 750, 10, 3, { roundLabel: 'Practice 2 of 2' })
 	
 	
 // this params array is organized such that the 0 index = the number of loss cards in round, the 1 index = the gain amount of each happy card, and the 2nd index = the loss amount when you turn over a sad face
