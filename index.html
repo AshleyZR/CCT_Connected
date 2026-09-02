@@ -2,11 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experiment</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
+  html, body { margin: 0; padding: 0; background: #fff; }
   body { font-family: sans-serif; }
-  #intro, #thanks { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; text-align: center; padding: 0 20px; }
+  /* min-height, not height: the panel grows with its content and the page scrolls. */
+  #intro, #thanks { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; text-align: center; padding: 24px 20px; box-sizing: border-box; }
   #intro p, #thanks p { max-width: 560px; color: #333; }
   button.primary {
     font-size: 18px; padding: 12px 28px; cursor: pointer;
@@ -17,8 +19,11 @@
   #code-form { margin: 8px 0 4px; }
   #code-form label { display: block; font-size: 14px; color: #555; margin-bottom: 6px; }
   #code-form input {
-    font-size: 18px; padding: 10px 12px; width: 200px; text-align: center;
+    font-size: 18px; padding: 10px 12px; width: min(200px, 60vw); text-align: center;
     border: 1px solid #cbd5e1; border-radius: 6px; letter-spacing: 2px;
+  }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 3px solid #1d4ed8; outline-offset: 2px;
   }
   #code-form input:disabled { background: #f1f5f9; color: #94a3b8; }
   #code-form button {
