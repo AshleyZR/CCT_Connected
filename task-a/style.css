@@ -14,6 +14,13 @@
   box-sizing: border-box;
 }
 
+/* Panel geometry lives here so anything sized against it (e.g. the
+   fixation screen) stays correct at every breakpoint. */
+:root {
+  --panel-gap: 24px;
+  --panel-pad: 32px;
+}
+
 html {
   /* The inherited 26px base is too large to lay out against; sections
      below set their own sizes. */
@@ -52,9 +59,9 @@ body {
   top: auto;
   width: min(calc(100% - 32px), 1200px);
   height: auto;
-  min-height: calc(100vh - 48px);
-  margin: 24px auto;
-  padding: 32px;
+  min-height: calc(100vh - 2 * var(--panel-gap));
+  margin: var(--panel-gap) auto;
+  padding: var(--panel-pad);
   background-color: white;
   box-shadow: 1px 1px 4px #555;
   border-radius: 15px;
@@ -229,11 +236,13 @@ textarea:focus-visible,
 }
 
 /* ---------- fixation ---------- */
+/* Fills the panel's content box, so the cross sits in the middle of the
+   screen rather than near the top. */
 .fixation-block {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 40vh;
+  min-height: calc(100vh - 2 * var(--panel-gap) - 2 * var(--panel-pad));
   font-size: 3rem;
   color: black;
 }
@@ -349,12 +358,13 @@ textarea:focus-visible,
 }
 
 @media (max-width: 600px) {
+  :root {
+    --panel-gap: 8px;
+    --panel-pad: 16px;
+  }
   html { font-size: 16px; }
   .display_stage {
     width: calc(100% - 16px);
-    margin: 8px auto;
-    padding: 16px;
-    min-height: calc(100vh - 16px);
   }
   .game-layout { gap: 14px; }
   .gl-status { grid-template-columns: 1fr; gap: 8px; }

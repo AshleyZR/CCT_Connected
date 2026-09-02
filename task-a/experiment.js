@@ -694,7 +694,7 @@ var round_delay = {
   choices: [''],
   button_html: '<button style="display:none;"></button>',
   response_ends_trial: false,
-  timing_response: 6000
+  timing_response: 5000
 };
 
 // var round_delay = {
@@ -996,7 +996,7 @@ columbia_card_task_hot_experiment.push(start_test_block);
 for (i = 0; i < numRounds; i++) {
   columbia_card_task_hot_experiment.push(test_node);
 
-  // 6s fixation only between rounds, not after the last round
+  // 5s fixation only between rounds, not after the last round
   if (i < numRounds - 1) {
     columbia_card_task_hot_experiment.push(round_delay);
   }
