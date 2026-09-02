@@ -85,7 +85,7 @@ var roundSettings = function(roundLabel, gainAmount, lossAmount, lossCards, poin
 		settingCell('game_round', 'ROUND', roundLabel, false) +
 		settingCell('gain_amount', 'PER GAIN CARD', '+' + gainAmount + ' points', true) +
 		settingCell('loss_amount', 'LOSS PENALTY', '\u2212' + lossAmount + ' points', true) +
-		settingCell('num_loss_cards', 'LOSS CARDS', lossCards + ' of 32', true)
+		settingCell('num_loss_cards', 'LOSS CARDS', lossCards, true)
 	if (points !== null && points !== undefined) {
 		html += settingCell('current_round', 'CURRENT ROUND POINTS', points, false)
 	}
