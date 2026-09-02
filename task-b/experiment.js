@@ -437,7 +437,11 @@ var PAGE_TRANSITION = instrPage('Second Card Game',
 /* ---------------------------------------------------------------- */
 /* Cold page C1 - How to Play                                        */
 /* ---------------------------------------------------------------- */
-var PAGE_C1 = instrPage('How to Play',
+// Numbered by the order this participant plays the games, not by which
+// task it is: whichever game comes first is Game 1.
+var GAME_NUMBER = IS_FIRST_TASK ? 1 : 2
+
+var PAGE_C1 = instrPage('How to Play Game ' + GAME_NUMBER,
 	'<p>At the beginning of each round, choose how many cards you want to take.</p>' +
 	'<p>Click one numbered button from 0 to 32.</p>' +
 	'<p><strong>The computer will randomly determine which cards are selected.</strong></p>' +
