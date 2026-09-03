@@ -4,6 +4,192 @@
 // Position in the chained sequence; set by index.html. Standalone runs count as first.
 var IS_FIRST_TASK = (typeof CHAIN_INDEX === 'undefined') || CHAIN_INDEX === 0
 
+/* ---------------------------------------------------------------- */
+/* Event log.                                                        */
+/* Every exported row is appended here at the moment the event       */
+/* happens, so onsets, ends and UTC timestamps are measured rather   */
+/* than reconstructed at export time. cctBuildCSV() is the only      */
+/* source for the result CSV; jsPsych's own trial data is still      */
+/* recorded but is no longer exported.                               */
+/* ---------------------------------------------------------------- */
+var CCT_VERSION = 'hot'
+
+var CCT_COLUMNS = ['participant_id', 'row_timestamp_utc', 'cct_version', 'phase', 'trial_index',
+	'event_type', 'which_round', 'condition_repetition', 'num_loss_cards', 'gain_amount',
+	'loss_amount', 'action_type', 'card_id_in_a_hot_round', 'num_cards_chosen',
+	'loss_revealed_on_action', 'termination_reason', 'running_round_score_in_hot',
+	'round_net_points', 'event_onset_ms_from_run_start', 'response_time_ms',
+	'event_end_ms_from_run_start']
+
+// One monotonic origin for every relative time in the file: this task launch.
+var CCT_CLOCK = (window.performance && typeof window.performance.now === 'function') ?
+	function() { return window.performance.now() } :
+	function() { return Date.now() }
+var CCT_T0 = CCT_CLOCK()
+
+function cctMs() { return Math.round(CCT_CLOCK() - CCT_T0) }
+
+var CCT_EVENTS = []
+var cctSeq = 0
+
+// Context that rows inherit, so every row inside a round carries its round and
+// its condition without each call site repeating them.
+var cctPhase = 'instructions'
+var cctRound = null
+var cctRep = null
+var cctParams = null
+var cctRoundOpen = false
+var cctRespAvailAt = null
+var cctCondCounts = {}
+var cctOpenTrialEvent = null
+var cctLastCardId = null
+var cctPracticeCards = 0
+
+// Time from the moment a response became available to the response itself.
+function cctRt() {
+	if (cctRespAvailAt === null) return null
+	var rt = cctMs() - cctRespAvailAt
+	return rt >= 0 ? rt : null
+}
+
+function cctOpen(event_type, fields) {
+	var e = {
+		participant_id: (typeof PARTICIPANT_ID === 'string') ? PARTICIPANT_ID : '',
+		row_timestamp_utc: null,
+		cct_version: CCT_VERSION,
+		phase: cctPhase,
+		trial_index: null,
+		event_type: event_type,
+		which_round: cctRound,
+		condition_repetition: cctRep,
+		num_loss_cards: cctParams ? cctParams.num_loss_cards : null,
+		gain_amount: cctParams ? cctParams.gain_amount : null,
+		loss_amount: cctParams ? cctParams.loss_amount : null,
+		action_type: null,
+		card_id_in_a_hot_round: null,
+		num_cards_chosen: null,
+		loss_revealed_on_action: null,
+		termination_reason: null,
+		running_round_score_in_hot: null,
+		round_net_points: null,
+		event_onset_ms_from_run_start: cctMs(),
+		response_time_ms: null,
+		event_end_ms_from_run_start: null,
+		_seq: cctSeq++
+	}
+	if (fields) {
+		for (var k in fields) { if (fields.hasOwnProperty(k)) e[k] = fields[k] }
+	}
+	CCT_EVENTS.push(e)
+	return e
+}
+
+// A row is stamped with its UTC time when it is finalised, not at export.
+function cctClose(e, fields) {
+	if (!e) return null
+	if (fields) {
+		for (var k in fields) { if (fields.hasOwnProperty(k)) e[k] = fields[k] }
+	}
+	if (e.event_end_ms_from_run_start === null) e.event_end_ms_from_run_start = cctMs()
+	e.row_timestamp_utc = new Date().toISOString()
+	return e
+}
+
+// A click or a screen change is instantaneous: it starts and ends at one moment.
+function cctMark(event_type, fields) { return cctClose(cctOpen(event_type, fields), null) }
+
+// Opens a round and records which of the two presentations of this condition it is.
+function cctRoundStart(phase, round, numLoss, gain, loss, countRepetition, extra) {
+	cctPhase = phase
+	cctRound = round
+	cctParams = { num_loss_cards: numLoss, gain_amount: gain, loss_amount: loss }
+	if (countRepetition) {
+		var key = numLoss + '|' + gain + '|' + loss
+		cctCondCounts[key] = (cctCondCounts[key] || 0) + 1
+		cctRep = cctCondCounts[key]
+	} else {
+		cctRep = null
+	}
+	cctRoundOpen = true
+	cctPracticeCards = 0
+	cctLastCardId = null
+	return cctMark('round_onset', extra || null)
+}
+
+// Closes a round. Ignored if the round is already closed, so a stray click on a
+// control that is still enabled after the round ended cannot add a second row.
+function cctRoundEnd(fields) {
+	if (!cctRoundOpen) return null
+	cctRoundOpen = false
+	return cctMark('round_end', fields)
+}
+
+/* Trial-level hooks, wired up in index.html. Trials that are a whole event in
+   themselves (an instruction page, the inter-round fixation, the final wait
+   screen) get their row from here; rounds log their own finer-grained events. */
+function cctTrialStart() {
+	var t = jsPsych.currentTrial()
+	cctRespAvailAt = cctMs()
+	if (!t) return
+	var id = t.data ? t.data.trial_id : undefined
+	if (id === 'stim') return          // a round trial: it logs its own events
+	if (t.type === 'call-function') return   // payout computation, not an event
+	cctRound = null
+	cctRep = null
+	cctParams = null
+	if (t.type === 'poldrack-text' && id === 'end') {
+		cctOpenTrialEvent = cctOpen('task_end', null)
+	} else if (t.type === 'single-stim-button' && typeof t.data === 'undefined') {
+		cctOpenTrialEvent = cctOpen('iti_onset', null)
+	} else {
+		cctPhase = 'instructions'
+		cctOpenTrialEvent = cctOpen('instructions', null)
+	}
+}
+
+function cctTrialFinish(data) {
+	if (!cctOpenTrialEvent) return
+	// The plugins store -1 when a trial ended on its own timer; that is not a
+	// response time, so it is exported as a blank cell.
+	var rt = (data && typeof data.rt === 'number' && data.rt >= 0) ? data.rt : null
+	cctClose(cctOpenTrialEvent, { response_time_ms: rt })
+	cctOpenTrialEvent = null
+}
+
+function cctCell(v) {
+	if (v === null || v === undefined || v === '') return ''
+	if (v === true) return 'true'
+	if (v === false) return 'false'
+	var s = String(v)
+	if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"'
+	return s
+}
+
+function cctBuildCSV() {
+	// Safety net: an event still in progress would otherwise export a blank end
+	// time. The normal path cannot reach here with one open, because a trial is
+	// always finalised before the experiment's on_finish runs.
+	for (var n = 0; n < CCT_EVENTS.length; n++) {
+		if (CCT_EVENTS[n].event_end_ms_from_run_start === null) cctClose(CCT_EVENTS[n], null)
+	}
+	// Chronological by measured onset; _seq keeps events that share a millisecond
+	// in the order they actually occurred.
+	var rows = CCT_EVENTS.slice().sort(function(a, b) {
+		return (a.event_onset_ms_from_run_start - b.event_onset_ms_from_run_start) ||
+			(a._seq - b._seq)
+	})
+	var lines = [CCT_COLUMNS.join(',')]
+	for (var i = 0; i < rows.length; i++) {
+		rows[i].trial_index = i    // zero-based index of the final row order
+		var cells = []
+		for (var j = 0; j < CCT_COLUMNS.length; j++) {
+			cells.push(cctCell(rows[i][CCT_COLUMNS[j]]))
+		}
+		lines.push(cells.join(','))
+	}
+	return lines.join('\n')
+}
+
 // State-dependent prompts, shared by the tutorial, practice and real rounds.
 var PROMPT_INITIAL = 'Select a card to turn over, or choose TAKE NO CARD.'
 var PROMPT_AFTER_GAIN = 'Select another card, or choose STOP.'
@@ -178,18 +364,26 @@ var collect = function() {
 		}
 	currID = 'collectButton'
 	whichClickInRound = whichClickInRound + 1
+	cctMark('participant_action', { action_type: 'next_round', response_time_ms: cctRt() })
+	cctRespAvailAt = cctMs()
 }
 
 var noCard = function() {
 	currID = 'noCardButton'
 	roundOver=2
 	whichClickInRound = whichClickInRound + 1
+	cctMark('participant_action', { action_type: 'take_no_card',
+		running_round_score_in_hot: roundPoints, response_time_ms: cctRt() })
+	cctRespAvailAt = cctMs()
 }
 
 var endRound = function() {
 	currID = 'endRoundButton'
 	roundOver=2
 	whichClickInRound = whichClickInRound + 1
+	cctMark('participant_action', { action_type: 'stop',
+		running_round_score_in_hot: roundPoints, response_time_ms: cctRt() })
+	cctRespAvailAt = cctMs()
 }
 
 // Clickable card function during test
@@ -211,6 +405,16 @@ var chooseCard = function(clicked_id) {
     unclickedCards.splice(index, 1)
     roundPoints = roundPoints + gainAmt
   }
+
+  cctLastCardId = currID
+  cctMark('participant_action', {
+    action_type: 'select_card',
+    card_id_in_a_hot_round: currID,
+    loss_revealed_on_action: whichLossCards.indexOf(currID) !== -1,
+    running_round_score_in_hot: roundPoints,
+    response_time_ms: cctRt()
+  })
+  cctRespAvailAt = cctMs()
 }
 
 var getRound = function() {
@@ -305,16 +509,34 @@ var getRound = function() {
       whichLossCards.push(shuffledCardArray.pop());
     }
 
+    cctRoundStart('test', whichRound, numLossCards, gainAmt, lossAmt, true,
+      { running_round_score_in_hot: roundPoints });
+
     roundOver = 1;
     return buildScreen(0);
   }
 
   if (roundOver === 1) {
+    // Reaching this state means the last action was a gain card, and the board is
+    // being redrawn with that card face-up.
+    cctMark('safe_feedback', { card_id_in_a_hot_round: cctLastCardId,
+      running_round_score_in_hot: roundPoints });
     return buildScreen(1);
   }
 
   if (roundOver === 2) {
     
+
+    if (lossClicked) {
+      cctMark('loss_feedback', { card_id_in_a_hot_round: cctLastCardId,
+        running_round_score_in_hot: roundPoints });
+    }
+    cctRoundEnd({
+      num_cards_chosen: clickedGainCards.length + clickedLossCards.length,
+      termination_reason: lossClicked ? 'loss_card' : 'voluntary_stop',
+      running_round_score_in_hot: roundPoints,
+      round_net_points: roundPoints
+    });
 
     clickedCards = clickedGainCards.concat(clickedLossCards);
 
@@ -370,6 +592,33 @@ var turnCards = function(cards) {
   }
 }
 
+// During practice, STOP and TAKE NO CARD both do exactly the same thing -
+// turnCards(). These wrappers add nothing but the event row, so the two can be
+// told apart in the data.
+var practiceStop = function() {
+	if (cctRoundOpen) {
+		cctMark('participant_action', { action_type: 'stop',
+			running_round_score_in_hot: instructPoints, response_time_ms: cctRt() })
+		cctRoundEnd({ num_cards_chosen: cctPracticeCards,
+			termination_reason: 'voluntary_stop',
+			running_round_score_in_hot: instructPoints, round_net_points: instructPoints })
+		cctRespAvailAt = cctMs()
+	}
+	turnCards()
+}
+
+var practiceNoCard = function() {
+	if (cctRoundOpen) {
+		cctMark('participant_action', { action_type: 'take_no_card',
+			running_round_score_in_hot: instructPoints, response_time_ms: cctRt() })
+		cctRoundEnd({ num_cards_chosen: cctPracticeCards,
+			termination_reason: 'voluntary_stop',
+			running_round_score_in_hot: instructPoints, round_net_points: instructPoints })
+		cctRespAvailAt = cctMs()
+	}
+	turnCards()
+}
+
 var turnOneCard = function(whichCard, win) {
 	if (win === 'loss') {
 		document.getElementById("" + whichCard + "").src =
@@ -404,6 +653,9 @@ var getPractice1 = function() {
 		whichLossCards.push(shuffledCardArray.pop())
 	}
 	whichGainCards = shuffledCardArray
+	instructPoints = 0
+	cctRoundStart('practice', 1, numLossCards, gainAmt, lossAmt, false,
+		{ running_round_score_in_hot: instructPoints })
 	gameState = practiceSetup
 	return gameState
 }
@@ -425,6 +677,9 @@ var getPractice2 = function() {
 		whichLossCards.push(shuffledCardArray.pop())
 	}
 	whichGainCards = shuffledCardArray
+	instructPoints = 0
+	cctRoundStart('practice', 2, numLossCards, gainAmt, lossAmt, false,
+		{ running_round_score_in_hot: instructPoints })
 	gameState = practiceSetup2
 	return gameState
 }
@@ -444,6 +699,14 @@ var instructCard = function(clicked_id) {
 		document.getElementById(clicked_id).src =
 			'images/chosen.png';
 		setPrompt(PROMPT_AFTER_GAIN)
+		cctPracticeCards = cctPracticeCards + 1
+		cctLastCardId = currID
+		cctMark('participant_action', { action_type: 'select_card',
+			card_id_in_a_hot_round: currID, loss_revealed_on_action: false,
+			running_round_score_in_hot: instructPoints, response_time_ms: cctRt() })
+		cctMark('safe_feedback', { card_id_in_a_hot_round: currID,
+			running_round_score_in_hot: instructPoints })
+		cctRespAvailAt = cctMs()
 	} else if (whichLossCards.indexOf(currID) != -1) {
 		instructPoints = instructPoints - lossAmt
 		document.getElementById(clicked_id).disabled = true;
@@ -452,6 +715,16 @@ var instructCard = function(clicked_id) {
 			'images/loss.png';
 		 $("input.card_image").attr("disabled", true);
 		CCT_timeouts.push(setTimeout(function() {turnCards()}, 2000))
+		cctPracticeCards = cctPracticeCards + 1
+		cctLastCardId = currID
+		cctMark('participant_action', { action_type: 'select_card',
+			card_id_in_a_hot_round: currID, loss_revealed_on_action: true,
+			running_round_score_in_hot: instructPoints, response_time_ms: cctRt() })
+		cctMark('loss_feedback', { card_id_in_a_hot_round: currID,
+			running_round_score_in_hot: instructPoints })
+		cctRoundEnd({ num_cards_chosen: cctPracticeCards, termination_reason: 'loss_card',
+			running_round_score_in_hot: instructPoints, round_net_points: instructPoints })
+		cctRespAvailAt = cctMs()
 	}
 }
 
@@ -609,8 +882,8 @@ var practiceScreen = function(roundNo, lossAmount, gainAmount, lossCards) {
 		settings: roundSettings('Practice ' + roundNo + ' of 2', gainAmount, lossAmount, lossCards, 0),
 		prompt: PROMPT_INITIAL,
 		actions:
-			"<button type='button' class = CCT-btn id = NoCardButton onclick = turnCards()>TAKE NO CARD</button>" +
-			"<button type='button' class = CCT-btn id = turnButton onclick = turnCards() disabled>STOP</button>" +
+			"<button type='button' class = CCT-btn id = NoCardButton onclick = practiceNoCard()>TAKE NO CARD</button>" +
+			"<button type='button' class = CCT-btn id = turnButton onclick = practiceStop() disabled>STOP</button>" +
 			"<button type='button' class = 'CCT-btn select-button' id = collectButton onclick = collect() disabled>NEXT ROUND</button>",
 		cards: getBoard(2)
 	})
