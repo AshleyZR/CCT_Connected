@@ -4,6 +4,192 @@
 // Position in the chained sequence; set by index.html. Standalone runs count as first.
 var IS_FIRST_TASK = (typeof CHAIN_INDEX === 'undefined') || CHAIN_INDEX === 0
 
+/* ---------------------------------------------------------------- */
+/* Event log.                                                        */
+/* Every exported row is appended here at the moment the event       */
+/* happens, so onsets, ends and UTC timestamps are measured rather   */
+/* than reconstructed at export time. cctBuildCSV() is the only      */
+/* source for the result CSV; jsPsych's own trial data is still      */
+/* recorded but is no longer exported.                               */
+/* ---------------------------------------------------------------- */
+var CCT_VERSION = 'cold'
+
+var CCT_COLUMNS = ['participant_id', 'row_timestamp_utc', 'cct_version', 'phase', 'trial_index',
+	'event_type', 'which_round', 'condition_repetition', 'num_loss_cards', 'gain_amount',
+	'loss_amount', 'action_type', 'card_id_in_a_hot_round', 'num_cards_chosen',
+	'loss_revealed_on_action', 'termination_reason', 'running_round_score_in_hot',
+	'round_net_points', 'event_onset_ms_from_run_start', 'response_time_ms',
+	'event_end_ms_from_run_start']
+
+// One monotonic origin for every relative time in the file: this task launch.
+var CCT_CLOCK = (window.performance && typeof window.performance.now === 'function') ?
+	function() { return window.performance.now() } :
+	function() { return Date.now() }
+var CCT_T0 = CCT_CLOCK()
+
+function cctMs() { return Math.round(CCT_CLOCK() - CCT_T0) }
+
+var CCT_EVENTS = []
+var cctSeq = 0
+
+// Context that rows inherit, so every row inside a round carries its round and
+// its condition without each call site repeating them.
+var cctPhase = 'instructions'
+var cctRound = null
+var cctRep = null
+var cctParams = null
+var cctRoundOpen = false
+var cctRespAvailAt = null
+var cctCondCounts = {}
+var cctOpenTrialEvent = null
+var cctLastCardId = null
+var cctPracticeCards = 0
+
+// Time from the moment a response became available to the response itself.
+function cctRt() {
+	if (cctRespAvailAt === null) return null
+	var rt = cctMs() - cctRespAvailAt
+	return rt >= 0 ? rt : null
+}
+
+function cctOpen(event_type, fields) {
+	var e = {
+		participant_id: (typeof PARTICIPANT_ID === 'string') ? PARTICIPANT_ID : '',
+		row_timestamp_utc: null,
+		cct_version: CCT_VERSION,
+		phase: cctPhase,
+		trial_index: null,
+		event_type: event_type,
+		which_round: cctRound,
+		condition_repetition: cctRep,
+		num_loss_cards: cctParams ? cctParams.num_loss_cards : null,
+		gain_amount: cctParams ? cctParams.gain_amount : null,
+		loss_amount: cctParams ? cctParams.loss_amount : null,
+		action_type: null,
+		card_id_in_a_hot_round: null,
+		num_cards_chosen: null,
+		loss_revealed_on_action: null,
+		termination_reason: null,
+		running_round_score_in_hot: null,
+		round_net_points: null,
+		event_onset_ms_from_run_start: cctMs(),
+		response_time_ms: null,
+		event_end_ms_from_run_start: null,
+		_seq: cctSeq++
+	}
+	if (fields) {
+		for (var k in fields) { if (fields.hasOwnProperty(k)) e[k] = fields[k] }
+	}
+	CCT_EVENTS.push(e)
+	return e
+}
+
+// A row is stamped with its UTC time when it is finalised, not at export.
+function cctClose(e, fields) {
+	if (!e) return null
+	if (fields) {
+		for (var k in fields) { if (fields.hasOwnProperty(k)) e[k] = fields[k] }
+	}
+	if (e.event_end_ms_from_run_start === null) e.event_end_ms_from_run_start = cctMs()
+	e.row_timestamp_utc = new Date().toISOString()
+	return e
+}
+
+// A click or a screen change is instantaneous: it starts and ends at one moment.
+function cctMark(event_type, fields) { return cctClose(cctOpen(event_type, fields), null) }
+
+// Opens a round and records which of the two presentations of this condition it is.
+function cctRoundStart(phase, round, numLoss, gain, loss, countRepetition, extra) {
+	cctPhase = phase
+	cctRound = round
+	cctParams = { num_loss_cards: numLoss, gain_amount: gain, loss_amount: loss }
+	if (countRepetition) {
+		var key = numLoss + '|' + gain + '|' + loss
+		cctCondCounts[key] = (cctCondCounts[key] || 0) + 1
+		cctRep = cctCondCounts[key]
+	} else {
+		cctRep = null
+	}
+	cctRoundOpen = true
+	cctPracticeCards = 0
+	cctLastCardId = null
+	return cctMark('round_onset', extra || null)
+}
+
+// Closes a round. Ignored if the round is already closed, so a stray click on a
+// control that is still enabled after the round ended cannot add a second row.
+function cctRoundEnd(fields) {
+	if (!cctRoundOpen) return null
+	cctRoundOpen = false
+	return cctMark('round_end', fields)
+}
+
+/* Trial-level hooks, wired up in index.html. Trials that are a whole event in
+   themselves (an instruction page, the inter-round fixation, the final wait
+   screen) get their row from here; rounds log their own finer-grained events. */
+function cctTrialStart() {
+	var t = jsPsych.currentTrial()
+	cctRespAvailAt = cctMs()
+	if (!t) return
+	var id = t.data ? t.data.trial_id : undefined
+	if (id === 'stim') return          // a round trial: it logs its own events
+	if (t.type === 'call-function') return   // payout computation, not an event
+	cctRound = null
+	cctRep = null
+	cctParams = null
+	if (t.type === 'poldrack-text' && id === 'end') {
+		cctOpenTrialEvent = cctOpen('task_end', null)
+	} else if (t.type === 'single-stim-button' && typeof t.data === 'undefined') {
+		cctOpenTrialEvent = cctOpen('iti_onset', null)
+	} else {
+		cctPhase = 'instructions'
+		cctOpenTrialEvent = cctOpen('instructions', null)
+	}
+}
+
+function cctTrialFinish(data) {
+	if (!cctOpenTrialEvent) return
+	// The plugins store -1 when a trial ended on its own timer; that is not a
+	// response time, so it is exported as a blank cell.
+	var rt = (data && typeof data.rt === 'number' && data.rt >= 0) ? data.rt : null
+	cctClose(cctOpenTrialEvent, { response_time_ms: rt })
+	cctOpenTrialEvent = null
+}
+
+function cctCell(v) {
+	if (v === null || v === undefined || v === '') return ''
+	if (v === true) return 'true'
+	if (v === false) return 'false'
+	var s = String(v)
+	if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"'
+	return s
+}
+
+function cctBuildCSV() {
+	// Safety net: an event still in progress would otherwise export a blank end
+	// time. The normal path cannot reach here with one open, because a trial is
+	// always finalised before the experiment's on_finish runs.
+	for (var n = 0; n < CCT_EVENTS.length; n++) {
+		if (CCT_EVENTS[n].event_end_ms_from_run_start === null) cctClose(CCT_EVENTS[n], null)
+	}
+	// Chronological by measured onset; _seq keeps events that share a millisecond
+	// in the order they actually occurred.
+	var rows = CCT_EVENTS.slice().sort(function(a, b) {
+		return (a.event_onset_ms_from_run_start - b.event_onset_ms_from_run_start) ||
+			(a._seq - b._seq)
+	})
+	var lines = [CCT_COLUMNS.join(',')]
+	for (var i = 0; i < rows.length; i++) {
+		rows[i].trial_index = i    // zero-based index of the final row order
+		var cells = []
+		for (var j = 0; j < CCT_COLUMNS.length; j++) {
+			cells.push(cctCell(rows[i][CCT_COLUMNS[j]]))
+		}
+		lines.push(cells.join(','))
+	}
+	return lines.join('\n')
+}
+
 // State-dependent prompts.
 var PROMPT_CHOOSE = 'How many cards do you want to take?'
 var SUBPROMPT_CHOOSE = 'Select one number from 0 to 32.'
@@ -140,7 +326,7 @@ var getButtons = function(handler) {
 
 var nextRoundButton = function(withTimerClear) {
 	return "<button type='button' id = nextButton class = 'CCT-btn select-button'" +
-		(withTimerClear ? " onclick = clearTimers()" : "") + " disabled>NEXT ROUND</button>"
+		(withTimerClear ? " onclick = coldNextRound()" : "") + " disabled>NEXT ROUND</button>"
 }
 
 var getBoard = function() {
@@ -155,6 +341,12 @@ var getBoard = function() {
 	return cards
 }
 
+var coldNextRound = function() {
+	cctMark('participant_action', { action_type: 'next_round', response_time_ms: cctRt() })
+	cctRespAvailAt = cctMs()
+	clearTimers()
+}
+
 function clearTimers() {
 	for (var i = 0; i < CCT_timeouts.length; i++) {
 		clearTimeout(CCT_timeouts[i]);
@@ -166,6 +358,7 @@ var getPractice1 = function() {
 	whichLossCards = [17]
 	gainAmt = 30
 	lossAmt = 250
+	cctRoundStart('practice', 1, 1, gainAmt, lossAmt, false, null)
 	return practiceSetup1
 }
 
@@ -173,6 +366,7 @@ var getPractice2 = function() {
 	whichLossCards = [2,6,31]
 	gainAmt = 10
 	lossAmt = 750
+	cctRoundStart('practice', 2, 3, gainAmt, lossAmt, false, null)
 	return practiceSetup2
 }
 
@@ -192,6 +386,11 @@ var chooseButton = function(clicked_id) {
 		}
 	}
 	roundPointsArray.push(roundPoints)
+	cctMark('participant_action', { action_type: 'choose_card_count',
+		num_cards_chosen: currID, response_time_ms: cctRt() })
+	cctRoundEnd({ num_cards_chosen: currID, termination_reason: 'cold_end_of_round',
+		round_net_points: roundPoints })
+	cctRespAvailAt = cctMs()
 	// Scoring above is unchanged. Nothing about the outcome is shown: no card is
 	// flipped, no identity revealed, no loss-card feedback given for this round.
 	$('#' + clicked_id).addClass('selected-number')
@@ -227,6 +426,7 @@ var getRound = function() {
 	for (i = 0; i < numLossCards; i++) {
 		whichLossCards.push(shuffledCardArray.pop())
 	}
+	cctRoundStart('test', whichRound, numLossCards, gainAmt, lossAmt, true, null)
 	return coldRoundScreen(whichRound, lossAmt, gainAmt, numLossCards)
 }
 

@@ -41,53 +41,6 @@ var PARTICIPANT_ID = (function() {
 <script src='experiment.js'></script>
 
 <script>
-var DROP_COLUMNS = ['block_duration', 'stim_duration', 'possible_responses', 'fixation_appear_time', 'fixation_end_time', 'responses'];
-
-function buildFilteredCSV(dropCols) {
-    var rows = jsPsych.data.getData();
-    if (!rows || rows.length === 0) {
-        return '';
-    }
-    var allKeys = [];
-    var seen = {};
-    for (var i = 0; i < rows.length; i++) {
-        for (var k in rows[i]) {
-            if (rows[i].hasOwnProperty(k) && !seen[k]) {
-                seen[k] = true;
-                allKeys.push(k);
-            }
-        }
-    }
-    var keys = allKeys.filter(function(k) { return dropCols.indexOf(k) === -1; });
-    // participant_id is attached to every row via addProperties, so it lands last in
-    // first-seen key order. Move it to the front to make the file easy to eyeball.
-    var pidAt = keys.indexOf('participant_id');
-    if (pidAt > 0) {
-        keys.splice(pidAt, 1);
-        keys.unshift('participant_id');
-    }
-
-    function escape(val) {
-        if (val === null || val === undefined) return '';
-        var s = (typeof val === 'object') ? JSON.stringify(val) : String(val);
-        if (/[",\n\r]/.test(s)) {
-            s = '"' + s.replace(/"/g, '""') + '"';
-        }
-        return s;
-    }
-
-    var lines = [keys.join(',')];
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var line = [];
-        for (var j = 0; j < keys.length; j++) {
-            line.push(escape(row[keys[j]]));
-        }
-        lines.push(line.join(','));
-    }
-    return lines.join('\n');
-}
-
 function downloadCSV(filename, csvText) {
     var blob = new Blob([csvText], {type: 'text/csv;charset=utf-8;'});
     var url = URL.createObjectURL(blob);
@@ -115,23 +68,26 @@ function pidPrefix() {
     return PARTICIPANT_ID.replace(/\s+/g, '-') + '_';
 }
 
-function saveFilteredCSV(filename, dropCols) {
-    downloadCSV(filename, buildFilteredCSV(dropCols));
+function saveResultsCSV(filename) {
+    downloadCSV(filename, cctBuildCSV());
 }
 
 var IN_CHAINED_MODE = new URLSearchParams(window.location.search).has('s');
 
 $( document ).ready(function() {
 
-    // Stamps participant_id onto every recorded row, including rows already written.
+    // The CSV export takes participant_id from the event log; this keeps it on
+    // jsPsych's own trial data too, which the standalone /save path posts as JSON.
     jsPsych.data.addProperties({ participant_id: PARTICIPANT_ID });
 
     jsPsych.init({
              timeline: columbia_card_task_cold_experiment,
              display_element: "getDisplayElement",
              fullscreen: !IN_CHAINED_MODE,
+             on_trial_start: cctTrialStart,
              on_trial_finish: function(data){
                addID('columbia-card-task-cold')
+               cctTrialFinish(data)
              },
 
              on_finish: function(data){
@@ -146,7 +102,7 @@ $( document ).ready(function() {
                      var roundLabel = (idx === 0) ? 'FirstRound' : 'SecondRound';
                      var filename = pidPrefix() + roundLabel + '_Cold_' + timestamp() + '.csv';
                      try {
-                         localStorage.setItem('e_csv_' + idx, buildFilteredCSV(DROP_COLUMNS));
+                         localStorage.setItem('e_csv_' + idx, cctBuildCSV());
                          localStorage.setItem('e_name_' + idx, filename);
                      } catch (e) {}
 
@@ -178,7 +134,7 @@ $( document ).ready(function() {
                              if (err.status == 200) {
                                  document.location = "/next";
                              } else {
-                                 saveFilteredCSV(pidPrefix() + 'columbia-card-task-cold_results_' + timestamp() + '.csv', DROP_COLUMNS);
+                                 saveResultsCSV(pidPrefix() + 'columbia-card-task-cold_results_' + timestamp() + '.csv');
                              }
                          }
                      });
