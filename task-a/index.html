@@ -108,6 +108,13 @@ function timestamp() {
         + '-' + pad(d.getHours()) + pad(d.getMinutes());
 }
 
+function pidPrefix() {
+    // Participant ID as a leading file-name fragment, so files group by participant.
+    // Spaces become hyphens; an empty ID (standalone run) yields no prefix at all.
+    if (!PARTICIPANT_ID) return '';
+    return PARTICIPANT_ID.replace(/\s+/g, '-') + '_';
+}
+
 function saveFilteredCSV(filename, dropCols) {
     downloadCSV(filename, buildFilteredCSV(dropCols));
 }
@@ -137,7 +144,7 @@ $( document ).ready(function() {
                      // Chained mode: stash CSV; download all files only after the final task.
                      var orderArr = order.split(',');
                      var roundLabel = (idx === 0) ? 'FirstRound' : 'SecondRound';
-                     var filename = roundLabel + '_Hot_' + timestamp() + '.csv';
+                     var filename = pidPrefix() + roundLabel + '_Hot_' + timestamp() + '.csv';
                      try {
                          localStorage.setItem('e_csv_' + idx, buildFilteredCSV(DROP_COLUMNS));
                          localStorage.setItem('e_name_' + idx, filename);
@@ -171,7 +178,7 @@ $( document ).ready(function() {
                              if (err.status == 200) {
                                  document.location = "/next";
                              } else {
-                                 saveFilteredCSV('columbia-card-task-hot_results_' + timestamp() + '.csv', DROP_COLUMNS);
+                                 saveFilteredCSV(pidPrefix() + 'columbia-card-task-hot_results_' + timestamp() + '.csv', DROP_COLUMNS);
                              }
                          }
                      });
