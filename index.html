@@ -190,6 +190,15 @@ function exitFullscreen() {
   }
 }
 
+function pidFileTag() {
+  // Participant ID as a file-name suffix. Read from the stash, so it works both when
+  // the last task posts back from the iframe and when it lands here directly.
+  var pid = null;
+  try { pid = localStorage.getItem('cct_pid'); } catch (e) {}
+  pid = (pid || '').trim().replace(/\s+/g, '-');
+  return pid ? '_' + pid : '';
+}
+
 function finishExperiment() {
   var enc = new TextEncoder();
   var files = [];
@@ -198,9 +207,11 @@ function finishExperiment() {
     var name = localStorage.getItem('e_name_' + i);
     if (csv && name) files.push({ name: name, data: enc.encode(csv) });
   }
+  // Read the ID before clearing the stash, which drops it.
+  var tag = pidFileTag();
   clearStash();
   if (files.length > 0) {
-    downloadBlob('Results.zip', buildZip(files));
+    downloadBlob('Results' + tag + '.zip', buildZip(files));
   }
   exitFullscreen();
   document.getElementById('intro').style.display = 'none';
