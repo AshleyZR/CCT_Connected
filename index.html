@@ -16,24 +16,24 @@
   }
   button.primary:hover:enabled { background: #1d4ed8; }
   button.primary:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
-  #code-form { margin: 8px 0 4px; }
-  #code-form label { display: block; font-size: 14px; color: #555; margin-bottom: 6px; }
-  #code-form input {
+  #code-form, #pid-form { margin: 8px 0 4px; }
+  #code-form label, #pid-form label { display: block; font-size: 14px; color: #555; margin-bottom: 6px; }
+  #code-form input, #pid-form input {
     font-size: 18px; padding: 10px 12px; width: min(200px, 60vw); text-align: center;
     border: 1px solid #cbd5e1; border-radius: 6px; letter-spacing: 2px;
   }
   a:focus-visible, button:focus-visible, input:focus-visible {
     outline: 3px solid #1d4ed8; outline-offset: 2px;
   }
-  #code-form input:disabled { background: #f1f5f9; color: #94a3b8; }
-  #code-form button {
+  #code-form input:disabled, #pid-form input:disabled { background: #f1f5f9; color: #94a3b8; }
+  #code-form button, #pid-form button {
     font-size: 16px; padding: 10px 20px; margin-left: 8px; cursor: pointer;
     border: none; border-radius: 6px; background: #475569; color: #fff;
   }
-  #code-form button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
-  #code-msg { min-height: 22px; font-size: 15px; margin: 4px 0 12px; }
-  #code-msg.ok { color: #15803d; }
-  #code-msg.err { color: #b91c1c; }
+  #code-form button:disabled, #pid-form button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+  #code-msg, #pid-msg { min-height: 22px; font-size: 15px; margin: 4px 0 12px; }
+  #code-msg.ok, #pid-msg.ok { color: #15803d; }
+  #code-msg.err, #pid-msg.err { color: #b91c1c; }
   iframe#exp { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 </style>
 </head>
@@ -42,13 +42,26 @@
 <div id="intro">
   <h1 style="font-weight:normal;">Experiment</h1>
   <p>You will complete two short tasks back-to-back. The experiment will run in fullscreen.</p>
-  <form id="code-form" autocomplete="off">
-    <label for="code">Experimenter code</label>
-    <input type="password" id="code" name="code" autocomplete="off" autocapitalize="off"
-           autocorrect="off" spellcheck="false" inputmode="text">
-    <button type="submit" id="unlock">Unlock</button>
-  </form>
-  <p id="code-msg" role="status" aria-live="polite"></p>
+  <div id="step-code">
+    <form id="code-form" autocomplete="off">
+      <label for="code">Experimenter code</label>
+      <input type="password" id="code" name="code" autocomplete="off" autocapitalize="off"
+             autocorrect="off" spellcheck="false" inputmode="text">
+      <button type="submit" id="unlock">Unlock</button>
+    </form>
+    <p id="code-msg" role="status" aria-live="polite"></p>
+  </div>
+
+  <div id="step-pid" style="display:none;">
+    <form id="pid-form" autocomplete="off">
+      <label for="pid">Participant ID</label>
+      <input type="text" id="pid" name="pid" autocomplete="off" autocapitalize="characters"
+             autocorrect="off" spellcheck="false" inputmode="text" maxlength="32">
+      <button type="submit" id="setpid">Confirm</button>
+    </form>
+    <p id="pid-msg" role="status" aria-live="polite"></p>
+  </div>
+
   <p><button class="primary" id="start" disabled>Launch Experiment</button></p>
 </div>
 
@@ -166,6 +179,7 @@ function clearStash() {
     localStorage.removeItem('e_csv_' + i);
     localStorage.removeItem('e_name_' + i);
   }
+  localStorage.removeItem('cct_pid');
 }
 
 function exitFullscreen() {
@@ -225,12 +239,18 @@ var CODES = {
   // Fresh launch: clear stash, wait for a valid experimenter code.
   clearStash();
 
-  var order = null;   // set only once a recognised code is entered
+  var order = null;           // set only once a recognised code is entered
+  var participantId = null;   // set only once a participant ID is confirmed
   var form = document.getElementById('code-form');
   var input = document.getElementById('code');
   var unlock = document.getElementById('unlock');
   var msg = document.getElementById('code-msg');
   var startBtn = document.getElementById('start');
+  var stepCode = document.getElementById('step-code');
+  var stepPid = document.getElementById('step-pid');
+  var pidForm = document.getElementById('pid-form');
+  var pidInput = document.getElementById('pid');
+  var pidMsg = document.getElementById('pid-msg');
 
   input.focus();
 
@@ -254,8 +274,48 @@ var CODES = {
     input.value = '';
     input.disabled = true;
     unlock.disabled = true;
+    // Step 2: collect the participant ID. Launch stays locked until it is confirmed.
+    stepCode.style.display = 'none';
+    stepPid.style.display = 'block';
+    pidInput.focus();
+  });
+
+  pidForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var entered = pidInput.value.trim();
+
+    if (!entered) {
+      pidMsg.className = 'err';
+      pidMsg.textContent = 'Please enter a participant ID.';
+      pidInput.focus();
+      return;
+    }
+    // Keep IDs to characters that stay intact in a CSV column and a file name.
+    if (!/^[A-Za-z0-9 ._-]+$/.test(entered)) {
+      pidMsg.className = 'err';
+      pidMsg.textContent = 'Use letters, numbers, spaces, dots, hyphens or underscores only.';
+      pidInput.select();
+      return;
+    }
+
+    participantId = entered;
+    // Stashed so the second game still has the ID even if the URL is stripped.
+    try { localStorage.setItem('cct_pid', participantId); } catch (err) {}
+    pidMsg.className = 'ok';
+    pidMsg.textContent = 'Participant ID recorded: ' + participantId;
     startBtn.disabled = false;
     startBtn.focus();
+  });
+
+  // Editing the field after confirming re-locks Launch, so the ID that gets recorded
+  // is always the one shown as confirmed.
+  pidInput.addEventListener('input', function() {
+    if (participantId !== null && pidInput.value.trim() !== participantId) {
+      participantId = null;
+      startBtn.disabled = true;
+      pidMsg.className = '';
+      pidMsg.textContent = '';
+    }
   });
 
   window.addEventListener('message', function(e) {
@@ -263,9 +323,11 @@ var CODES = {
   });
 
   startBtn.addEventListener('click', function() {
-    if (!order) return;   // defensive: button is disabled until a code is accepted
+    // Defensive: the button is disabled until both steps are complete.
+    if (!order || !participantId) return;
     var orderStr = order.join(',');
-    var firstUrl = 'task-' + order[0] + '/index.html?s=' + encodeURIComponent(orderStr) + '&i=0';
+    var firstUrl = 'task-' + order[0] + '/index.html?s=' + encodeURIComponent(orderStr) + '&i=0'
+        + '&cct_pid=' + encodeURIComponent(participantId);
     var el = document.documentElement;
     var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
     if (req) {
