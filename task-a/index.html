@@ -26,6 +26,17 @@
 <script>
 // Position of this task in the chained sequence: 0 = first game, 1 = second game.
 var CHAIN_INDEX = parseInt(new URLSearchParams(window.location.search).get('i') || '0', 10);
+
+// Participant ID entered by the experimenter on the launcher page. It arrives on the
+// query string; localStorage is a fallback in case the URL is ever stripped. Empty
+// string when a task is opened standalone, outside the launcher.
+var PARTICIPANT_ID = (function() {
+    var pid = new URLSearchParams(window.location.search).get('cct_pid');
+    if (pid === null) {
+        try { pid = localStorage.getItem('cct_pid'); } catch (e) { pid = null; }
+    }
+    return (pid || '').trim();
+})();
 </script>
 <script src='experiment.js'></script>
 
@@ -48,6 +59,13 @@ function buildFilteredCSV(dropCols) {
         }
     }
     var keys = allKeys.filter(function(k) { return dropCols.indexOf(k) === -1; });
+    // participant_id is attached to every row via addProperties, so it lands last in
+    // first-seen key order. Move it to the front to make the file easy to eyeball.
+    var pidAt = keys.indexOf('participant_id');
+    if (pidAt > 0) {
+        keys.splice(pidAt, 1);
+        keys.unshift('participant_id');
+    }
 
     function escape(val) {
         if (val === null || val === undefined) return '';
@@ -98,6 +116,9 @@ var IN_CHAINED_MODE = new URLSearchParams(window.location.search).has('s');
 
 $( document ).ready(function() {
 
+    // Stamps participant_id onto every recorded row, including rows already written.
+    jsPsych.data.addProperties({ participant_id: PARTICIPANT_ID });
+
     jsPsych.init({
              timeline: columbia_card_task_hot_experiment,
              display_element: "getDisplayElement",
@@ -125,7 +146,8 @@ $( document ).ready(function() {
                      if (idx + 1 < orderArr.length) {
                          window.location.href = '../task-' + orderArr[idx + 1]
                              + '/index.html?s=' + encodeURIComponent(order)
-                             + '&i=' + (idx + 1);
+                             + '&i=' + (idx + 1)
+                             + '&cct_pid=' + encodeURIComponent(PARTICIPANT_ID);
                      } else {
                          // Final task: hand off to launcher, which builds and downloads the zip.
                          window.location.href = '../index.html?d=1';
