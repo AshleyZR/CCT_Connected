@@ -642,6 +642,9 @@ var turnCards = function(cards) {
   $('#collectButton').prop('disabled', false)
   $('#NoCardButton').prop('disabled', true)
   $('#turnButton').prop('disabled', true)
+  // The round is over, so lock the board too: without this, the un-turned cards
+  // stay clickable and a further click would still change the score.
+  $('input.card_image').attr('disabled', true)
   setPrompt(PROMPT_COMPLETE)
 
   for (var i = 1; i <= 32; i++) {
