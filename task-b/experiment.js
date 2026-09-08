@@ -19,7 +19,7 @@ var CCT_COLUMNS = ['participant_id', 'row_timestamp_utc', 'cct_version', 'phase'
 	'loss_amount', 'action_type', 'card_id_in_a_hot_round', 'num_cards_chosen',
 	'loss_revealed_on_action', 'termination_reason', 'running_round_score_in_hot',
 	'round_net_points', 'event_onset_ms_from_run_start', 'response_time_ms',
-	'event_end_ms_from_run_start']
+	'event_end_ms_from_run_start', 'payout_average_points']
 
 // One monotonic origin for every relative time in the file: this task launch.
 var CCT_CLOCK = (window.performance && typeof window.performance.now === 'function') ?
@@ -44,6 +44,8 @@ var cctCondCounts = {}
 var cctOpenTrialEvent = null
 var cctLastCardId = null
 var cctPracticeCards = 0
+var cctOpenReveal = null
+var cctPendingRoundEnd = null
 
 // Time from the moment a response became available to the response itself.
 function cctRt() {
@@ -75,6 +77,7 @@ function cctOpen(event_type, fields) {
 		event_onset_ms_from_run_start: cctMs(),
 		response_time_ms: null,
 		event_end_ms_from_run_start: null,
+		payout_average_points: null,
 		_seq: cctSeq++
 	}
 	if (fields) {
@@ -113,6 +116,8 @@ function cctRoundStart(phase, round, numLoss, gain, loss, countRepetition, extra
 	cctRoundOpen = true
 	cctPracticeCards = 0
 	cctLastCardId = null
+	cctPendingRoundEnd = null
+	cctOpenReveal = null
 	return cctMark('round_onset', extra || null)
 }
 
@@ -141,6 +146,15 @@ function cctTrialStart() {
 		cctOpenTrialEvent = cctOpen('task_end', null)
 	} else if (t.type === 'single-stim-button' && typeof t.data === 'undefined') {
 		cctOpenTrialEvent = cctOpen('iti_onset', null)
+	} else if (t.data && t.data.exp_stage === 'tutorial') {
+		// The guided "Try It" screen is its own phase, so its rows are trivially
+		// excluded from anything that should only see practice or test trials. This
+		// row marks the moment the screen appears and nothing more: the actions
+		// inside the screen are logged separately, and a row spanning them would
+		// enclose its own children and make event_end run backwards.
+		cctPhase = 'tutorial'
+		cctOpenTrialEvent = null
+		cctMark('instructions', null)
 	} else {
 		cctPhase = 'instructions'
 		cctOpenTrialEvent = cctOpen('instructions', null)
@@ -154,6 +168,41 @@ function cctTrialFinish(data) {
 	var rt = (data && typeof data.rt === 'number' && data.rt >= 0) ? data.rt : null
 	cctClose(cctOpenTrialEvent, { response_time_ms: rt })
 	cctOpenTrialEvent = null
+}
+
+/* Payout for this task file, computed from its own completed test rounds.
+   Instruction, tutorial and practice rows are never eligible, and no original
+   round score is touched. Three eligible rounds are sampled without
+   replacement when that many exist, otherwise every eligible round is used.
+   The sampled round numbers and their individual scores are deliberately not
+   recorded: only the resulting average is. */
+function cctLogPayout() {
+	var eligible = []
+	for (var i = 0; i < CCT_EVENTS.length; i++) {
+		var e = CCT_EVENTS[i]
+		if (e.event_type === 'round_end' && e.phase === 'test' &&
+			typeof e.round_net_points === 'number' && e.round_net_points > 0) {
+			eligible.push(e.round_net_points)
+		}
+	}
+	var avg = null
+	if (eligible.length > 0) {
+		var pool = eligible.slice()
+		var use = Math.min(3, pool.length)
+		var sum = 0
+		for (var k = 0; k < use; k++) {
+			sum += pool.splice(Math.floor(Math.random() * pool.length), 1)[0]
+		}
+		avg = sum / use
+	}
+	// With no positive-scoring round there is no payment rule defined yet, so the
+	// cell is left blank rather than inventing a value. The row is still written
+	// and the export still runs.
+	cctPhase = 'test'
+	cctRound = null
+	cctRep = null
+	cctParams = null
+	return cctMark('payout_computation', { payout_average_points: avg })
 }
 
 function cctCell(v) {
@@ -494,6 +543,9 @@ var tutorialChoose = function(clicked_id) {
 	document.getElementById('tutorial_text').innerHTML =
 		'You selected 7 cards.<br>The cards remain face-down. Click <strong>NEXT ROUND</strong> to continue.'
 	$('#nextButton').prop('disabled', false)
+	cctMark('participant_action', { action_type: 'choose_card_count',
+		num_cards_chosen: n, response_time_ms: cctRt() })
+	cctRespAvailAt = cctMs()
 }
 
 var getColdTutorial = function() {
@@ -801,6 +853,7 @@ var payoutTrial = {
 		prize2 = randomRoundPointsArray.pop()
 		prize3 = randomRoundPointsArray.pop()
 		performance_var = prize1 + prize2 + prize3
+		cctLogPayout()
 	}
 };
 
