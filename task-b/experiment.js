@@ -175,7 +175,8 @@ function cctTrialFinish(data) {
    round score is touched. Three eligible rounds are sampled without
    replacement when that many exist, otherwise every eligible round is used.
    The sampled round numbers and their individual scores are deliberately not
-   recorded: only the resulting average is. */
+   recorded: only the resulting average is. With no eligible round the average
+   is 0. */
 function cctLogPayout() {
 	var eligible = []
 	for (var i = 0; i < CCT_EVENTS.length; i++) {
@@ -185,7 +186,9 @@ function cctLogPayout() {
 			eligible.push(e.round_net_points)
 		}
 	}
-	var avg = null
+	// With no positive-scoring test round there is nothing to sample, so the
+	// payout average is 0.
+	var avg = 0
 	if (eligible.length > 0) {
 		var pool = eligible.slice()
 		var use = Math.min(3, pool.length)
@@ -195,9 +198,6 @@ function cctLogPayout() {
 		}
 		avg = sum / use
 	}
-	// With no positive-scoring round there is no payment rule defined yet, so the
-	// cell is left blank rather than inventing a value. The row is still written
-	// and the export still runs.
 	cctPhase = 'test'
 	cctRound = null
 	cctRep = null
@@ -285,8 +285,7 @@ function assessPerformance() {
 	} 
 	var missed_percent = missed_count/experiment_data.length
   	credit_var = (missed_percent < 0.4 && avg_rt > 200)
-	jsPsych.data.addDataToLastTrial({"credit_var": credit_var,
-									"performance_var": performance_var})
+	jsPsych.data.addDataToLastTrial({"credit_var": credit_var})
 }
 
 var appendTestData = function() {
@@ -489,7 +488,6 @@ var getRound = function() {
 var sumInstructTime = 0 //ms
 var instructTimeThresh = 0 ///in seconds
 var credit_var = true
-var performance_var = 0
 
 // task specific variables
 var currID = 0
@@ -501,12 +499,8 @@ var whichLossCards = [17]
 var CCT_timeouts = []
 var numRounds = 16
 var whichRound = 0
-var totalPoints = 0
 var roundOver = 0
 var roundPointsArray = []
-var prize1 = 0
-var prize2 = 0
-var prize3 = 0
 
 // Header panel shared by the tutorial, practice rounds and real rounds.
 // One screen shape for the tutorial, practice rounds and real rounds.
@@ -847,12 +841,6 @@ var payoutTrial = {
 		trial_id: 'calculate reward'
 	},
 	func: function() {
-		totalPoints = math.sum(roundPointsArray)
-		randomRoundPointsArray = jsPsych.randomization.repeat(roundPointsArray, 1)
-		prize1 = randomRoundPointsArray.pop()
-		prize2 = randomRoundPointsArray.pop()
-		prize3 = randomRoundPointsArray.pop()
-		performance_var = prize1 + prize2 + prize3
 		cctLogPayout()
 	}
 };
